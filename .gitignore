@@ -5,6 +5,7 @@ out
 *.ncb
 *.suo
 *.aps
+src/.vs
 src/VDCapture/h/*.inl
 src/Riza/h/*.inl
 src/VDDisplay/autogen
