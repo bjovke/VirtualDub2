@@ -531,10 +531,15 @@ void VDUIDialogChooseVideoCompressorW32::EnumerateCodecs() {
 					swprintf(buf, 64, L"A video codec with FOURCC '%.4S'", (const char *)&info.fccHandler);
 					VDExternalCodeBracket bracket(buf, __FILE__, __LINE__);
 
-					if (isEqualFOURCC(info.fccHandler, '1VSA'))
-						plugin.hic = ICOpenASV1(info.fccType, info.fccHandler, ICMODE_COMPRESS);
-					else	
-						plugin.hic = ICOpen(info.fccType, info.fccHandler, ICMODE_COMPRESS);
+					try {
+						if (isEqualFOURCC(info.fccHandler, '1VSA'))
+							plugin.hic = ICOpenASV1(info.fccType, info.fccHandler, ICMODE_COMPRESS);
+						else
+							plugin.hic = ICOpen(info.fccType, info.fccHandler, ICMODE_COMPRESS);
+					}
+					catch (...) {
+						plugin.hic = nullptr;
+					}
 				}
 
 				if (plugin.hic) {
