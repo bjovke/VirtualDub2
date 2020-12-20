@@ -36,6 +36,7 @@
 #include <vd2/system/vdstl.h>
 #include <vd2/system/w32assist.h>
 #include <vd2/Riza/direct3d.h>
+#include <VersionHelpers.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -469,21 +470,14 @@ bool VDD3D9Manager::Init() {
 	}
 
 	if (mbUseD3D9Ex) {
-		DWORD osver = ::GetVersion();
-
 		// FLIPEX support requires at least Windows 7.
-		if (osver < 0x80000000) {
-			uint8 osmajorver = LOBYTE(LOWORD(osver));
-			uint8 osminorver = HIBYTE(LOWORD(osver));
+		if (IsWindows7OrGreater()) {
+			HRESULT (APIENTRY *pDirect3DCreate9Ex)(UINT, IDirect3D9Ex **) = (HRESULT (APIENTRY *)(UINT, IDirect3D9Ex **))GetProcAddress(mhmodDX9, "Direct3DCreate9Ex");
+			if (pDirect3DCreate9Ex) {
+				HRESULT hr = pDirect3DCreate9Ex(D3D_SDK_VERSION, &mpD3DEx);
 
-			if (osmajorver >= 7 || (osmajorver == 6 && osminorver >= 1)) {
-				HRESULT (APIENTRY *pDirect3DCreate9Ex)(UINT, IDirect3D9Ex **) = (HRESULT (APIENTRY *)(UINT, IDirect3D9Ex **))GetProcAddress(mhmodDX9, "Direct3DCreate9Ex");
-				if (pDirect3DCreate9Ex) {
-					HRESULT hr = pDirect3DCreate9Ex(D3D_SDK_VERSION, &mpD3DEx);
-
-					if (SUCCEEDED(hr))
-						mpD3D = mpD3DEx;
-				}
+				if (SUCCEEDED(hr))
+					mpD3D = mpD3DEx;
 			}
 		}
 	}

@@ -55,12 +55,55 @@ namespace
 {
 bool VDIsTerminalServicesClient()
 {
-  if ((sint32)(GetVersion() & 0x000000FF) >= 0x00000005)
+  if (GetSystemMetrics(SM_REMOTESESSION))
   {
-    return GetSystemMetrics(SM_REMOTESESSION) != 0; // Requires Windows NT SP4 or later.
+    return true;
   }
 
-  return false; // Ignore Windows 95/98/98SE/ME/NT3/NT4.  (Broken on NT4 Terminal Server, but oh well.)
+  bool                  fIsRemoteable       = false;
+  static constexpr auto TERMINAL_SERVER_KEY = "SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\";
+  static constexpr auto GLASS_SESSION_ID    = "GlassSessionId";
+  HKEY hRegKey = nullptr;
+  LONG lResult;
+
+  lResult = RegOpenKeyEx(
+    HKEY_LOCAL_MACHINE,
+    TERMINAL_SERVER_KEY,
+    0, // ulOptions
+    KEY_READ,
+    &hRegKey);
+
+  if (lResult == ERROR_SUCCESS)
+  {
+    DWORD dwGlassSessionId;
+    DWORD cbGlassSessionId = sizeof(dwGlassSessionId);
+    DWORD dwType;
+
+    lResult = RegQueryValueExA(
+      hRegKey,
+      GLASS_SESSION_ID,
+      nullptr, // lpReserved
+      &dwType,
+      (BYTE *)&dwGlassSessionId,
+      &cbGlassSessionId);
+
+    if (lResult == ERROR_SUCCESS)
+    {
+      DWORD dwCurrentSessionId;
+
+      if (ProcessIdToSessionId(GetCurrentProcessId(), &dwCurrentSessionId))
+      {
+        fIsRemoteable = (dwCurrentSessionId != dwGlassSessionId);
+      }
+    }
+  }
+
+  if (hRegKey)
+  {
+    RegCloseKey(hRegKey);
+  }
+
+  return fIsRemoteable;
 }
 } // namespace
 

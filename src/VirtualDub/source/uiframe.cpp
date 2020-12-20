@@ -217,21 +217,10 @@ ATOM VDUIFrame::Register()
   wc.a.hIcon         = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_VIRTUALDUB));
   wc.a.hCursor       = LoadCursor(NULL, IDC_ARROW);
   wc.a.hbrBackground = (HBRUSH)(COLOR_3DFACE + 1); // GetStockObject(LTGRAY_BRUSH);
+  wc.w.lpszMenuName  = MAKEINTRESOURCEW(IDR_MAIN_MENU);
+  wc.w.lpszClassName = szAppNameW;
 
-  if (GetVersion() < 0x80000000)
-  {
-    wc.w.lpszMenuName  = MAKEINTRESOURCEW(IDR_MAIN_MENU);
-    wc.w.lpszClassName = szAppNameW;
-
-    sClass = RegisterClassW(&wc.w);
-  }
-  else
-  {
-    wc.a.lpszMenuName  = MAKEINTRESOURCEA(IDR_MAIN_MENU);
-    wc.a.lpszClassName = szAppName;
-
-    sClass = RegisterClassA(&wc.a);
-  }
+  sClass = RegisterClassW(&wc.w);
 
   return !!sClass;
 }

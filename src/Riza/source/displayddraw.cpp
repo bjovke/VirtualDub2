@@ -1512,7 +1512,7 @@ bool VDVideoDisplayMinidriverDirectDraw::Update(UpdateMode mode) {
 
 	ddsd.ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
 	
-	static DWORD dwLockFlags = GetVersion() & 0x80000000 ? DDLOCK_WRITEONLY | DDLOCK_NOSYSLOCK | DDLOCK_WAIT : DDLOCK_WRITEONLY | DDLOCK_WAIT;
+	static DWORD dwLockFlags = DDLOCK_WRITEONLY | DDLOCK_WAIT;
 
 	IDirectDrawSurface2 *pTarget = mpddsBitmap ? mpddsBitmap : mpddsOverlay;
 

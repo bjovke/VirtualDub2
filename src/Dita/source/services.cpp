@@ -422,14 +422,7 @@ static const VDStringW VDGetFileName(bool bSaveAs, long nKey, VDGUIHandle ctxPar
 		OPENFILENAMEW w;
 	} ofn={0};
 
-	// Slight annoyance: If we want to use custom templates and still keep the places
-	// bar, the lStructSize parameter must be greater than OPENFILENAME_SIZE_VERSION_400.
-	// But if sizeof(OPENFILENAME) is used under Windows 95/98, the open call fails.
-	// Argh.
-
-	bool bIsAtLeastWin2K = (sint32)(GetVersion() & 0x800000FF) >= 5;	// OS must be NT, major version >= 5
-
-	ofn.w.lStructSize		= bIsAtLeastWin2K ? sizeof(OPENFILENAME) : OPENFILENAME_SIZE_VERSION_400;
+	ofn.w.lStructSize		= sizeof(OPENFILENAME);
 	ofn.w.hwndOwner			= (HWND)ctxParent;
 	ofn.w.lpstrCustomFilter	= NULL;
 	ofn.w.nFilterIndex		= 0;
@@ -546,72 +539,34 @@ static const VDStringW VDGetFileName(bool bSaveAs, long nKey, VDGUIHandle ctxPar
 	// supply a full file path in lpstrFile or a directory path in lpstrInitialDir,
 	// but never the same in both.
 
-	if ((sint32)GetVersion() < 0) {		// Windows 95/98
-		VDStringA strFilters(VDTextWToA(pszFilters, FileFilterLength(pszFilters)));
-		VDStringA strDefExt(VDTextWToA(pszExt, -1));
-		VDStringA strTitle(VDTextWToA(pszTitle, -1));
+	wchar_t wszFile[MAX_PATH];
 
-		char szInitialPath[MAX_PATH];
-		char szFile[MAX_PATH];
+	if (existingFileName)
+		wcsncpyz(wszFile, init_filename.c_str(), MAX_PATH);
+	else
+		wszFile[0] = 0;
 
-		if (existingFileName) {
-			VDTextWToA(szFile, sizeof szFile, init_filename.c_str(), -1);
-		} else {
-			szFile[0] = 0;
-			VDTextWToA(szInitialPath, sizeof szInitialPath, init_filename.c_str(), -1);
-		}
+	ofn.w.lpstrFilter		= pszFilters;
+	ofn.w.lpstrFile			= wszFile;
+	ofn.w.nMaxFile			= MAX_PATH;
+	ofn.w.lpstrTitle		= pszTitle;
+	ofn.w.lpstrDefExt		= pszExt;
+	ofn.w.lpstrInitialDir	= existingFileName ? NULL : init_filename.c_str();
 
-		ofn.a.lpstrFilter		= strFilters.c_str();
-		ofn.a.lpstrFile			= szFile;
-		ofn.a.nMaxFile			= sizeof(szFile) / sizeof(szFile[0]);
-		ofn.a.lpstrTitle		= strTitle.c_str();
-		ofn.a.lpstrDefExt		= strDefExt.c_str();
-		ofn.a.lpstrInitialDir	= existingFileName ? NULL : szInitialPath;
+	BOOL (WINAPI *pfn)(OPENFILENAMEW *) = (bSaveAs ? GetSaveFileNameW : GetOpenFileNameW);
+	BOOL result = pfn(&ofn.w);
 
-		BOOL (WINAPI *pfn)(OPENFILENAMEA *) = (bSaveAs ? GetSaveFileNameA : GetOpenFileNameA);
-		BOOL result = pfn(&ofn.a);
+	// If the last path is no longer valid the dialog may fail to initialize, so if it's not
+	// a cancel we retry with no preset filename.
+	if (!result && CommDlgExtendedError()) {
+		wszFile[0] = 0;
+		ofn.w.lpstrInitialDir = NULL;
+		result = pfn(&ofn.w);
+	}
 
-		// If the last path is no longer valid the dialog may fail to initialize, so if it's not
-		// a cancel we retry with no preset filename.
-		if (!result && CommDlgExtendedError()) {
-			szFile[0] = 0;
-			result = pfn(&ofn.a);
-		}
-
-		if (result) {
-			VDTextAToW(fsent.szFile, sizeof(fsent.szFile)/sizeof(fsent.szFile[0]), szFile, -1);
-			bSuccess = true;
-		}
-	} else {
-		wchar_t wszFile[MAX_PATH];
-
-		if (existingFileName)
-			wcsncpyz(wszFile, init_filename.c_str(), MAX_PATH);
-		else
-			wszFile[0] = 0;
-
-		ofn.w.lpstrFilter		= pszFilters;
-		ofn.w.lpstrFile			= wszFile;
-		ofn.w.nMaxFile			= MAX_PATH;
-		ofn.w.lpstrTitle		= pszTitle;
-		ofn.w.lpstrDefExt		= pszExt;
-		ofn.w.lpstrInitialDir	= existingFileName ? NULL : init_filename.c_str();
-
-		BOOL (WINAPI *pfn)(OPENFILENAMEW *) = (bSaveAs ? GetSaveFileNameW : GetOpenFileNameW);
-		BOOL result = pfn(&ofn.w);
-
-		// If the last path is no longer valid the dialog may fail to initialize, so if it's not
-		// a cancel we retry with no preset filename.
-		if (!result && CommDlgExtendedError()) {
-			wszFile[0] = 0;
-			ofn.w.lpstrInitialDir = NULL;
-			result = pfn(&ofn.w);
-		}
-
-		if (result) {
-			wcsncpyz(fsent.szFile, wszFile, MAX_PATH);
-			bSuccess = true;
-		}
+	if (result) {
+		wcsncpyz(fsent.szFile, wszFile, MAX_PATH);
+		bSuccess = true;
 	}
 
 	if (bSuccess) {

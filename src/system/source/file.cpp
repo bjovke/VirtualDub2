@@ -32,11 +32,6 @@
 #include <vd2/system/file.h>
 
 namespace {
-	bool IsWindowsNT() {
-		static bool sbIsNT = (LONG)GetVersion()>=0;
-		return sbIsNT;
-	}
-
 	bool IsHardDrivePath(const wchar_t *path) {
 		const VDStringW rootPath(VDFileGetRootPath(path));
 
@@ -143,21 +138,12 @@ bool VDFile::open_internal(const char *pszFilename, const wchar_t *pwszFilename,
 	if (flags & kWriteThrough)	dwAttributes |= FILE_FLAG_WRITE_THROUGH;
 	if (flags & kUnbuffered)	dwAttributes |= FILE_FLAG_NO_BUFFERING;
 
-	VDStringA tempFilenameA;
 	VDStringW tempFilenameW;
 
-	if (IsWindowsNT()) {
-		if (pszFilename) {
-			tempFilenameW = VDTextAToW(pszFilename);
-			pwszFilename = tempFilenameW.c_str();
-			pszFilename = NULL;
-		}
-	} else {
-		if (pwszFilename) {
-			tempFilenameA = VDTextWToA(pwszFilename);
-			pszFilename = tempFilenameA.c_str();
-			pwszFilename = NULL;
-		}
+	if (pszFilename) {
+		tempFilenameW = VDTextAToW(pszFilename);
+		pwszFilename = tempFilenameW.c_str();
+		pszFilename = NULL;
 	}
 
 	if (pszFilename)
@@ -228,11 +214,6 @@ void VDFile::truncate() {
 }
 
 bool VDFile::extendValidNT(sint64 pos) {
-	if (GetVersion() & 0x80000000)
-		return true;				// No need, Windows 95/98/ME do this automatically anyway.
-
-	// The SetFileValidData() API is only available on XP and Server 2003.
-
 	typedef BOOL (APIENTRY *tpSetFileValidData)(HANDLE hFile, LONGLONG ValidDataLength);		// Windows XP, Server 2003
 	static tpSetFileValidData pSetFileValidData = (tpSetFileValidData)GetProcAddress(GetModuleHandle("kernel32"), "SetFileValidData");
 
@@ -250,9 +231,6 @@ void VDFile::extendValid(sint64 pos) {
 }
 
 bool VDFile::enableExtendValid() {
-	if (GetVersion() & 0x80000000)
-		return true;				// Not Windows NT, no privileges involved
-
 	// SetFileValidData() requires the SE_MANAGE_VOLUME_NAME privilege, so we must enable it
 	// on the process token. We don't attempt to strip the privilege afterward as that would
 	// introduce race conditions.

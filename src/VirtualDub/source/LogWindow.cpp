@@ -673,32 +673,8 @@ void VDLogWindowControl::Draw(HDC hdc, const VDStringW& s, RECT& r, bool bSizeOn
 			INT nMaxChars;
 			SIZE siz;
 
-			static const bool bIsWindows9x = (0 != (GetVersion() & 0x80000000));
-
-			if (bIsWindows9x) {
-				// Win9x path
-				siz.cx = siz.cy = 0;
-
-				nMaxChars = 0;
-				for(VDStringW::size_type i=nPos; i<nLineEnd; ++i) {
-					SIZE csiz;
-
-					if (!GetTextExtentPoint32W(hdc, s.data() + i, 1, &csiz))
-						break;
-
-					int width = siz.cx + csiz.cx;
-					if (width > r.right - r.left)
-						break;
-					++nMaxChars;
-					siz.cx = width;
-					if (csiz.cy > siz.cy)
-						siz.cy = csiz.cy;
-				}
-			} else {
-				// WinNT path
-				if (!GetTextExtentExPointW(hdc, s.data() + nPos, nLineEnd - nPos, r.right - r.left, &nMaxChars, NULL, &siz))
-					break;
-			}
+			if (!GetTextExtentExPointW(hdc, s.data() + nPos, nLineEnd - nPos, r.right - r.left, &nMaxChars, NULL, &siz))
+				break;
 
 			size_t nEnd = nPos + nMaxChars;
 

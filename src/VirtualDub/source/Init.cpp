@@ -770,40 +770,20 @@ bool InitInstance(HANDLE hInstance, int nCmdShow, bool topmost)
   DWORD dwExStyle = topmost ? WS_EX_TOPMOST : 0;
 
   // Create a main window for this application instance.
-  if (GetVersion() < 0x80000000)
-  {
-    g_hWnd = CreateWindowExW(
-      dwExStyle,
-      (LPCWSTR)VDUIFrame::Class(),
-      L"",
-      WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, // Window style.
-      CW_USEDEFAULT,                         // Default horizontal position.
-      CW_USEDEFAULT,                         // Default vertical position.
-      CW_USEDEFAULT,                         // Default width.
-      CW_USEDEFAULT,                         // Default height.
-      NULL,                                  // Overlapped windows have no parent.
-      NULL,                                  // Use the window class menu.
-      g_hInst,                               // This instance owns this window.
-      NULL                                   // Pointer not needed.
-    );
-  }
-  else
-  {
-    g_hWnd = CreateWindowExA(
-      dwExStyle,
-      (LPCSTR)VDUIFrame::Class(),
-      "",
-      WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, // Window style.
-      CW_USEDEFAULT,                         // Default horizontal position.
-      CW_USEDEFAULT,                         // Default vertical position.
-      CW_USEDEFAULT,                         // Default width.
-      CW_USEDEFAULT,                         // Default height.
-      NULL,                                  // Overlapped windows have no parent.
-      NULL,                                  // Use the window class menu.
-      g_hInst,                               // This instance owns this window.
-      NULL                                   // Pointer not needed.
-    );
-  }
+  g_hWnd = CreateWindowExW(
+    dwExStyle,
+    (LPCWSTR)VDUIFrame::Class(),
+    L"",
+    WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, // Window style.
+    CW_USEDEFAULT,                         // Default horizontal position.
+    CW_USEDEFAULT,                         // Default vertical position.
+    CW_USEDEFAULT,                         // Default width.
+    CW_USEDEFAULT,                         // Default height.
+    NULL,                                  // Overlapped windows have no parent.
+    NULL,                                  // Use the window class menu.
+    g_hInst,                               // This instance owns this window.
+    NULL                                   // Pointer not needed.
+  );
 
   // If window could not be created, return "failure".
   if (!g_hWnd)

@@ -518,10 +518,7 @@ void guiSetTitleW(HWND hWnd, UINT uID, ...)
   vswprintf(buf2, 256, s.c_str(), val);
   va_end(val);
 
-  if (GetVersion() < 0x80000000)
-    SetWindowTextW(hWnd, buf2);
-  else
-    SetWindowText(hWnd, VDTextWToA(buf2).c_str());
+  SetWindowTextW(hWnd, buf2);
 }
 
 void guiMenuHelp(HWND hwnd, WPARAM wParam, WPARAM part, const UINT *iTranslator)

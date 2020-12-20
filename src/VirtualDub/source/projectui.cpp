@@ -1209,14 +1209,7 @@ void VDProjectUI::SetTitle(int nTitleString, int nArgs, ...)
 
   const VDStringW title(VDaswprintf(VDLoadString(0, kVDST_ProjectUI, nTitleString), nArgs + 1, args));
 
-  if (GetVersion() < 0x80000000)
-  {
-    SetWindowTextW((HWND)mhwnd, title.c_str());
-  }
-  else
-  {
-    SetWindowTextA((HWND)mhwnd, VDTextWToA(title).c_str());
-  }
+  SetWindowTextW((HWND)mhwnd, title.c_str());
 }
 
 void VDProjectUI::SetPaneLayout(PaneLayoutMode layout)

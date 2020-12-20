@@ -41,7 +41,7 @@ protected:
 	bool mbRepeatRequested;
 	bool mbThunksInited;
 	VDFunctionThunk *mpThunk;
-	uint32 mTimerId;
+  UINT_PTR mTimerId;
 };
 
 #endif

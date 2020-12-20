@@ -32,23 +32,16 @@ BOOL WINAPI CtrlHandler(DWORD dwCtrlType)
   return FALSE;
 }
 
-#ifdef _M_AMD64
 inline bool IsUnicodeAPIAvailable()
 {
   return true;
 }
-#else
-inline bool IsUnicodeAPIAvailable()
-{
-  return !(GetVersion() & 0x80000000);
-}
-#endif
 
 int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
   TCHAR mappingName[32];
 
-  wsprintf(mappingName, _T("vdlaunch-data-%08x"), GetCurrentProcessId());
+  wsprintf(mappingName, L"vdlaunch-data-%08x", GetCurrentProcessId());
 
   HANDLE hFileMapping = OpenFileMapping(GENERIC_READ | GENERIC_WRITE, FALSE, mappingName);
   if (!hFileMapping)

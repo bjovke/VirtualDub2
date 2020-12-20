@@ -394,10 +394,7 @@ bool VDExternalModule::Lock()
 #endif
       }
 
-      if (GetVersion() & 0x80000000)
-        mhModule = LoadLibraryA(VDTextWToA(mFilename).c_str());
-      else
-        mhModule = LoadLibraryW(mFilename.c_str());
+      mhModule = LoadLibraryW(mFilename.c_str());
     }
 
     if (!mhModule)
