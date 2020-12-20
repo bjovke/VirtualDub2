@@ -1346,12 +1346,7 @@ bool VDJobQueue::OnFileUpdated(const wchar_t *path) {
 	if (!VDDoesPathExist(path))
 		return true;
 
-	HANDLE hTest;
-	
-	if (VDIsWindowsNT())
-		hTest = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	else
-		hTest = CreateFileA(VDTextWToA(path).c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE hTest = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if (hTest == INVALID_HANDLE_VALUE) {
 		DWORD err = GetLastError();

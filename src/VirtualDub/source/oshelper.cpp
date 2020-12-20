@@ -66,16 +66,14 @@ void VDShowHelp(HWND hwnd, const wchar_t *filename) {
 		if (!VDDoesPathExist(helpFile.c_str()))
 			throw MyError("Cannot find help file: %ls", helpFile.c_str());
 
-		// If we're on Windows NT, check for the ADS and/or network drive.
-		if (VDIsWindowsNT()) {
-			VDStringW helpFileADS(helpFile);
-			helpFileADS += L":Zone.Identifier";
-			if (VDDoesPathExist(helpFileADS.c_str())) {
-				int rv = MessageBox(hwnd, "VirtualDub has detected that its help file, VirtualDub.chm, has an Internet Explorer download location marker on it. This may prevent the help file from being displayed properly, resulting in \"Action canceled\" errors being displayed. Would you like to remove it?", "VirtualDub warning", MB_YESNO|MB_ICONEXCLAMATION);
+		// Check for the ADS and/or network drive.
+		VDStringW helpFileADS(helpFile);
+		helpFileADS += L":Zone.Identifier";
+		if (VDDoesPathExist(helpFileADS.c_str())) {
+			int rv = MessageBox(hwnd, "VirtualDub has detected that its help file, VirtualDub.chm, has an Internet Explorer download location marker on it. This may prevent the help file from being displayed properly, resulting in \"Action canceled\" errors being displayed. Would you like to remove it?", "VirtualDub warning", MB_YESNO|MB_ICONEXCLAMATION);
 
-				if (rv == IDYES)
-					DeleteFileW(helpFileADS.c_str());
-			}
+			if (rv == IDYES)
+				DeleteFileW(helpFileADS.c_str());
 		}
 
 		if (filename) {
@@ -89,18 +87,10 @@ void VDShowHelp(HWND hwnd, const wchar_t *filename) {
 		BOOL retval;
 
 		// CreateProcess will actually modify the string that it gets, soo....
-		if (VDIsWindowsNT()) {
-			STARTUPINFOW si = {sizeof(STARTUPINFOW)};
-			std::vector<wchar_t> tempbufW(helpCommand.size() + 1, 0);
-			helpCommand.copy(&tempbufW[0], tempbufW.size());
-			retval = CreateProcessW(NULL, &tempbufW[0], NULL, NULL, FALSE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi);
-		} else {
-			STARTUPINFOA si = {sizeof(STARTUPINFOA)};
-			VDStringA strA(VDTextWToA(helpCommand));
-			std::vector<char> tempbufA(strA.size() + 1, 0);
-			strA.copy(&tempbufA[0], tempbufA.size());
-			retval = CreateProcessA(NULL, &tempbufA[0], NULL, NULL, FALSE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi);
-		}
+		STARTUPINFOW si = {sizeof(STARTUPINFOW)};
+		std::vector<wchar_t> tempbufW(helpCommand.size() + 1, 0);
+		helpCommand.copy(&tempbufW[0], tempbufW.size());
+		retval = CreateProcessW(NULL, &tempbufW[0], NULL, NULL, FALSE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi);
 
 		if (retval) {
 			CloseHandle(pi.hThread);
@@ -114,38 +104,20 @@ void VDShowHelp(HWND hwnd, const wchar_t *filename) {
 
 bool IsFilenameOnFATVolume(const wchar_t *pszFilename) {
 	VDStringW rootPath(VDFileGetRootPath(pszFilename));
+	DWORD dwMaxComponentLength;
+	DWORD dwFSFlags;
+	wchar_t szFilesystem[MAX_PATH];
 
-	if (VDIsWindowsNT()) {
-		DWORD dwMaxComponentLength;
-		DWORD dwFSFlags;
-		wchar_t szFilesystem[MAX_PATH];
+	if (!GetVolumeInformationW(rootPath.c_str(),
+			NULL, 0,		// Volume name buffer
+			NULL,			// Serial number buffer
+			&dwMaxComponentLength,
+			&dwFSFlags,
+			szFilesystem,
+			MAX_PATH))
+		return false;
 
-		if (!GetVolumeInformationW(rootPath.c_str(),
-				NULL, 0,		// Volume name buffer
-				NULL,			// Serial number buffer
-				&dwMaxComponentLength,
-				&dwFSFlags,
-				szFilesystem,
-				MAX_PATH))
-			return false;
-
-		return !_wcsnicmp(szFilesystem, L"FAT", 3);
-	} else {
-		DWORD dwMaxComponentLength;
-		DWORD dwFSFlags;
-		char szFilesystem[MAX_PATH];
-
-		if (!GetVolumeInformationA(VDTextWToA(rootPath).c_str(),
-				NULL, 0,		// Volume name buffer
-				NULL,			// Serial number buffer
-				&dwMaxComponentLength,
-				&dwFSFlags,
-				szFilesystem,
-				sizeof szFilesystem))
-			return false;
-
-		return !_strnicmp(szFilesystem, "FAT", 3);
-	}
+	return !_wcsnicmp(szFilesystem, L"FAT", 3);
 }
 
 HWND APIENTRY VDGetAncestorW95(HWND hwnd, UINT gaFlags) {
@@ -180,10 +152,6 @@ namespace {
 
 		if (!ga)
 			ga = VDGetAncestorW95;
-		else if (!VDIsWindowsNT()) {
-			g_pVDGetAncestorRaw = ga;
-			ga = VDGetAncestorW98;
-		}
 
 		g_pVDGetAncestor = ga;
 		return ga(hwnd, gaFlags);
@@ -358,21 +326,12 @@ VDStringW VDGetLocalAppDataPath() {
 		FreeLibrary(hmodShell32);
 	}
 
-	if (VDIsWindowsNT()) {
-		wchar_t pathW[MAX_PATH];
+	wchar_t pathW[MAX_PATH];
 
-		if (!SHGetSpecialFolderPathW(NULL, pathW, csidl, FALSE))
-			return VDGetProgramPath();
+	if (!SHGetSpecialFolderPathW(NULL, pathW, csidl, FALSE))
+		return VDGetProgramPath();
 
-		return VDStringW(pathW);
-	} else {
-		char pathA[MAX_PATH];
-
-		if (!SHGetSpecialFolderPathA(NULL, pathA, csidl, FALSE))
-			return VDGetProgramPath();
-
-		return VDTextAToW(pathA);
-	}
+	return VDStringW(pathW);
 }
 
 void VDCopyTextToClipboardA(const char *s) {
@@ -424,13 +383,7 @@ void VDCopyTextToClipboardW(const wchar_t *s) {
 }
 
 void VDCopyTextToClipboard(const wchar_t *s) {
-	if (VDIsWindowsNT())
-		VDCopyTextToClipboardW(s);
-	else {
-		VDStringA sa(VDTextWToA(s));
-
-		VDCopyTextToClipboardA(sa.c_str());
-	}
+	VDCopyTextToClipboardW(s);
 }
 
 uint32 VDCreateAutoSaveSignature() {
@@ -469,17 +422,12 @@ namespace {
 }
 
 static void ExitWindowsExDammit(UINT uFlags, DWORD dwReserved) {
-	if (VDIsWindowsNT())
-		EnableShutdownPrivilegesNT();
-
+	EnableShutdownPrivilegesNT();
 	ExitWindowsEx(uFlags, dwReserved);
 }
 
 bool VDInitiateSystemShutdownWithUITimeout(VDSystemShutdownMode mode, const wchar_t *reason, uint32 timeout) {
 	if (mode != kVDSystemShutdownMode_Shutdown)
-		return false;
-
-	if (!VDIsWindowsNT())
 		return false;
 
 	HMODULE hmodK32 = GetModuleHandleA("advapi32");

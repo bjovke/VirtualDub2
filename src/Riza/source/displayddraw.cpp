@@ -582,7 +582,7 @@ void VDDisplayCachedImageDirectDraw::Update(const VDDisplayImageView& imageView)
 
 	const VDPixmap& px = imageView.GetImage();
 
-	static const DWORD dwLockFlags = VDIsWindowsNT() ? DDLOCK_WRITEONLY | DDLOCK_WAIT : DDLOCK_WRITEONLY | DDLOCK_NOSYSLOCK | DDLOCK_WAIT;
+	static const DWORD dwLockFlags = DDLOCK_WRITEONLY | DDLOCK_WAIT;
 
 	DDSURFACEDESC ddsd = {sizeof(DDSURFACEDESC)};
 	hr = mpSurface->Lock(NULL, &ddsd, dwLockFlags, NULL);

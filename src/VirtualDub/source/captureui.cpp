@@ -4208,10 +4208,7 @@ void VDCaptureProjectUI::RebuildPanel() {
 						if (int id = SaveDC(hdc)) {
 							SelectObject(hdc, hfont);
 
-							if (VDIsWindowsNT())
-								success = GetTextExtentPoint32W(hdc, itemLabel, wcslen(itemLabel), &sz);
-							else
-								success = GetTextExtentPoint32A(hdc, VDTextWToA(itemLabel).c_str(), wcslen(itemLabel), &sz);
+							success = GetTextExtentPoint32W(hdc, itemLabel, wcslen(itemLabel), &sz);
 
 							RestoreDC(hdc, id);
 						}
@@ -4247,10 +4244,7 @@ void VDCaptureProjectUI::RebuildPanel() {
 			HWND hwndGroup;
 			const wchar_t *groupLabel = VDLoadString(0, kVDST_CaptureUI, kVDMBase_CapInfoTypeLabels + type);
 			
-			if (VDIsWindowsNT())
-				hwndGroup = CreateWindowW(L"BUTTON", groupLabel, WS_CHILD|WS_VISIBLE|BS_GROUPBOX, x1, groupY, x2-x1, y - groupY, mhwndPanel, (HMENU)-1, g_hInst, NULL);
-			else
-				hwndGroup = CreateWindowA("BUTTON", VDTextWToA(groupLabel).c_str(), WS_CHILD|WS_VISIBLE|BS_GROUPBOX, x1, groupY, x2-x1, y - groupY, mhwndPanel, (HMENU)-1, g_hInst, NULL);
+			hwndGroup = CreateWindowW(L"BUTTON", groupLabel, WS_CHILD|WS_VISIBLE|BS_GROUPBOX, x1, groupY, x2-x1, y - groupY, mhwndPanel, (HMENU)-1, g_hInst, NULL);
 
 			if (hwndGroup) {
 				if (type==kVDCaptureInfoType_Flag)

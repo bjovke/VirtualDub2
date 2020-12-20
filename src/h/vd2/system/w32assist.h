@@ -27,21 +27,12 @@
 #define f_VD2_SYSTEM_W32ASSIST_H
 
 #include <windows.h>
+#include <VersionHelpers.h>
 
 #include <vd2/system/VDString.h>
 
-inline bool VDIsWindowsNT() {
-#ifdef _M_AMD64
-	return true;
-#else
-	static bool is_nt = !(GetVersion() & 0x80000000);
-
-	return is_nt;
-#endif
-}
-
 inline bool VDIsAtLeastVistaW32() {
-	return (sint32)(::GetVersion() & 0x800000FF) >= 6;
+	return IsWindowsVistaOrGreater();
 }
 
 // useful constants missing from the Platform SDK

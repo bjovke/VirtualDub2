@@ -30,23 +30,13 @@ bool VDUIDropFileListW32::GetFileName(int index, VDStringW& fileName) {
 	if (index < 0 || index >= mFileCount)
 		return false;
 
-	if (VDIsWindowsNT()) {
-		wchar_t fileBufW[MAX_PATH];
+	wchar_t fileBufW[MAX_PATH];
 
-		if (!DragQueryFileW(mhdrop, index, fileBufW, MAX_PATH))
-			return false;
+	if (!DragQueryFileW(mhdrop, index, fileBufW, MAX_PATH))
+		return false;
 
-		fileName = fileBufW;
-		return true;
-	} else {
-		char fileBufA[MAX_PATH];
-
-		if (!DragQueryFileA(mhdrop, index, fileBufA, MAX_PATH))
-			return false;
-
-		fileName = VDTextAToW(fileBufA);
-		return true;
-	}
+	fileName = fileBufW;
+	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -66,10 +56,7 @@ bool VDDialogFrameW32::Create(VDGUIHandle parent) {
 	if (!mhdlg) {
 		mbIsModal = false;
 
-		if (VDIsWindowsNT())
-			CreateDialogParamW(g_hInst, IS_INTRESOURCE(mpDialogResourceName) ? (LPCWSTR)mpDialogResourceName : VDTextAToW(mpDialogResourceName).c_str(), (HWND)parent, StaticDlgProc, (LPARAM)this);
-		else
-			CreateDialogParamA(g_hInst, mpDialogResourceName, (HWND)parent, StaticDlgProc, (LPARAM)this);
+		CreateDialogParamW(g_hInst, IS_INTRESOURCE(mpDialogResourceName) ? (LPCWSTR)mpDialogResourceName : VDTextAToW(mpDialogResourceName).c_str(), (HWND)parent, StaticDlgProc, (LPARAM)this);
 	}
 
 	return mhdlg != NULL;
@@ -87,10 +74,7 @@ void VDDialogFrameW32::Close() {
 
 sintptr VDDialogFrameW32::ShowDialog(VDGUIHandle parent) {
 	mbIsModal = true;
-	if (VDIsWindowsNT())
-		return DialogBoxParamW(g_hInst, IS_INTRESOURCE(mpDialogResourceName) ? (LPCWSTR)mpDialogResourceName : VDTextAToW(mpDialogResourceName).c_str(), (HWND)parent, StaticDlgProc, (LPARAM)this);
-	else
-		return DialogBoxParamA(g_hInst, mpDialogResourceName, (HWND)parent, StaticDlgProc, (LPARAM)this);
+	return DialogBoxParamW(g_hInst, IS_INTRESOURCE(mpDialogResourceName) ? (LPCWSTR)mpDialogResourceName : VDTextAToW(mpDialogResourceName).c_str(), (HWND)parent, StaticDlgProc, (LPARAM)this);
 }
 
 void VDDialogFrameW32::Show() {
@@ -515,28 +499,15 @@ void VDDialogFrameW32::ClearPeriodicTimer(uint32 id) {
 }
 
 void VDDialogFrameW32::ShowWarning(const wchar_t *message, const wchar_t *caption) {
-	if (VDIsWindowsNT())
-		::MessageBoxW(mhdlg, message, caption, MB_OK | MB_ICONWARNING);
-	else
-		::MessageBoxA(mhdlg, VDTextWToA(message).c_str(), VDTextWToA(caption).c_str(), MB_OK | MB_ICONWARNING);
+	::MessageBoxW(mhdlg, message, caption, MB_OK | MB_ICONWARNING);
 }
 
 void VDDialogFrameW32::ShowError(const wchar_t *message, const wchar_t *caption) {
-	if (VDIsWindowsNT())
-		::MessageBoxW(mhdlg, message, caption, MB_OK | MB_ICONERROR);
-	else
-		::MessageBoxA(mhdlg, VDTextWToA(message).c_str(), VDTextWToA(caption).c_str(), MB_OK | MB_ICONERROR);
+	::MessageBoxW(mhdlg, message, caption, MB_OK | MB_ICONERROR);
 }
 
 bool VDDialogFrameW32::Confirm(const wchar_t *message, const wchar_t *caption) {
-	int result;
-	
-	if (VDIsWindowsNT())
-		result = ::MessageBoxW(mhdlg, message, caption, MB_OKCANCEL | MB_ICONEXCLAMATION);
-	else
-		result = ::MessageBoxA(mhdlg, VDTextWToA(message).c_str(), VDTextWToA(caption).c_str(), MB_OKCANCEL | MB_ICONEXCLAMATION);
-
-	return result == IDOK;
+	return ::MessageBoxW(mhdlg, message, caption, MB_OKCANCEL | MB_ICONEXCLAMATION) == IDOK;
 }
 
 int VDDialogFrameW32::ActivateMenuButton(uint32 id, const wchar_t *const *items) {
@@ -608,11 +579,7 @@ void VDDialogFrameW32::LBSetSelectedIndex(uint32 id, sint32 idx) {
 }
 
 void VDDialogFrameW32::LBAddString(uint32 id, const wchar_t *s) {
-	if (VDIsWindowsNT()) {
-		SendDlgItemMessageW(mhdlg, id, LB_ADDSTRING, 0, (LPARAM)s);
-	} else {
-		SendDlgItemMessageA(mhdlg, id, LB_ADDSTRING, 0, (LPARAM)VDTextWToA(s).c_str());		
-	}
+	SendDlgItemMessageW(mhdlg, id, LB_ADDSTRING, 0, (LPARAM)s);
 }
 
 void VDDialogFrameW32::LBAddStringF(uint32 id, const wchar_t *format, ...) {
@@ -639,11 +606,7 @@ void VDDialogFrameW32::CBSetSelectedIndex(uint32 id, sint32 idx) {
 }
 
 void VDDialogFrameW32::CBAddString(uint32 id, const wchar_t *s) {
-	if (VDIsWindowsNT()) {
-		SendDlgItemMessageW(mhdlg, id, CB_ADDSTRING, 0, (LPARAM)s);
-	} else {
-		SendDlgItemMessageA(mhdlg, id, CB_ADDSTRING, 0, (LPARAM)VDTextWToA(s).c_str());		
-	}
+	SendDlgItemMessageW(mhdlg, id, CB_ADDSTRING, 0, (LPARAM)s);
 }
 
 sint32 VDDialogFrameW32::TBGetValue(uint32 id) {

@@ -195,33 +195,17 @@ int VDUIListViewW32::AddItem(const wchar_t *text, uintptr data) {
 		dwMask |= LVIF_STATE;
 
 	int item;
-	if (VDIsWindowsNT()) {
-		LVITEMW lviw={0};
+	LVITEMW lviw={0};
 
-		lviw.mask		= dwMask;
-		lviw.iItem		= 0x1FFFFFFF;
-		lviw.iSubItem	= 0;
-		lviw.state		= 0x1000;
-		lviw.stateMask	= (UINT)-1;
-		lviw.pszText	= (LPWSTR)text;
-		lviw.lParam		= (LPARAM)data;
+	lviw.mask		= dwMask;
+	lviw.iItem		= 0x1FFFFFFF;
+	lviw.iSubItem	= 0;
+	lviw.state		= 0x1000;
+	lviw.stateMask	= (UINT)-1;
+	lviw.pszText	= (LPWSTR)text;
+	lviw.lParam		= (LPARAM)data;
 
-		item = (int)SendMessageW(mhwnd, LVM_INSERTITEMW, 0, (LPARAM)&lviw);
-	} else {
-		LVITEMA lvia={0};
-
-		VDStringA textA(VDTextWToA(text));
-
-		lvia.mask		= dwMask;
-		lvia.iItem		= 0x1FFFFFFF;
-		lvia.iSubItem	= 0;
-		lvia.state		= 0x1000;
-		lvia.stateMask	= (UINT)-1;
-		lvia.pszText	= (LPSTR)textA.c_str();
-		lvia.lParam		= (LPARAM)data;
-
-		item = (int)SendMessageA(mhwnd, LVM_INSERTITEMA, 0, (LPARAM)&lvia);
-	}
+	item = (int)SendMessageW(mhwnd, LVM_INSERTITEMW, 0, (LPARAM)&lviw);
 
 	return item;
 }
@@ -232,52 +216,27 @@ void VDUIListViewW32::SetListCallback(IVDUIListCallback *cb) {
 
 void VDUIListViewW32::SetItemText(int item, int subitem, const wchar_t *text) {
 	DWORD dwMask = LVIF_TEXT;
+	LVITEMW lviw={0};
 
-	if (VDIsWindowsNT()) {
-		LVITEMW lviw={0};
+	lviw.mask		= dwMask;
+	lviw.iItem		= item;
+	lviw.iSubItem	= subitem;
+	lviw.pszText	= (LPWSTR)text;
 
-		lviw.mask		= dwMask;
-		lviw.iItem		= item;
-		lviw.iSubItem	= subitem;
-		lviw.pszText	= (LPWSTR)text;
-
-		SendMessageW(mhwnd, LVM_SETITEMTEXTW, (WPARAM)item, (LPARAM)&lviw);
-	} else {
-		LVITEMA lvia={0};
-
-		VDStringA textA(VDTextWToA(text));
-
-		lvia.mask		= dwMask;
-		lvia.iItem		= item;
-		lvia.iSubItem	= subitem;
-		lvia.pszText	= (LPSTR)textA.c_str();
-
-		SendMessageA(mhwnd, LVM_SETITEMTEXTA, (WPARAM)item, (LPARAM)&lvia);
-	}
+	SendMessageW(mhwnd, LVM_SETITEMTEXTW, (WPARAM)item, (LPARAM)&lviw);
 }
 
 void VDUIListViewW32::AddColumn(const wchar_t *name, int width, int affinity) {
 	VDASSERT(affinity >= 0);
 	VDASSERT(width >= 0);
 
-	if (VDIsWindowsNT()) {
-		LVCOLUMNW lvcw={0};
+	LVCOLUMNW lvcw={0};
 
-		lvcw.mask		= LVCF_TEXT | LVCF_WIDTH;
-		lvcw.pszText	= (LPWSTR)name;
-		lvcw.cx			= width;
+	lvcw.mask		= LVCF_TEXT | LVCF_WIDTH;
+	lvcw.pszText	= (LPWSTR)name;
+	lvcw.cx			= width;
 
-		SendMessageW(mhwnd, LVM_INSERTCOLUMNW, mColumns.size(), (LPARAM)&lvcw);
-	} else {
-		LVCOLUMNA lvca={0};
-		VDStringA nameA(VDTextWToA(name));
-
-		lvca.mask		= LVCF_TEXT | LVCF_WIDTH;
-		lvca.pszText	= (LPSTR)nameA.c_str();
-		lvca.cx			= width;
-
-		SendMessageA(mhwnd, LVM_INSERTCOLUMNA, mColumns.size(), (LPARAM)&lvca);
-	}
+	SendMessageW(mhwnd, LVM_INSERTCOLUMNW, mColumns.size(), (LPARAM)&lvcw);
 
 	mColumns.push_back(Column());
 	Column& col = mColumns.back();
@@ -324,17 +283,11 @@ void VDUIListViewW32::OnNotifyCallback(const NMHDR *pHdr) {
 
 		if (mpListCB && (lvi.mask & LVIF_TEXT)) {
 			if (mpListCB->GetListText(lvi.iItem, lvi.iSubItem, mListTextW[mListTextIndex])) {
-				if (VDIsWindowsNT()) {
-					NMLVDISPINFOW& lvdiw = *(NMLVDISPINFOW *)pHdr;
-					LVITEMW& lviw = lvdiw.item;
+				NMLVDISPINFOW& lvdiw = *(NMLVDISPINFOW *)pHdr;
+				LVITEMW& lviw = lvdiw.item;
 
-					lviw.pszText = const_cast<WCHAR *>(mListTextW[mListTextIndex].c_str());
-				} else {
-					mListTextA[mListTextIndex] = VDTextWToA(mListTextW[mListTextIndex]);
-
-					lvi.pszText = const_cast<CHAR *>(mListTextA[mListTextIndex].c_str());
-				}
-
+				lviw.pszText = const_cast<WCHAR *>(mListTextW[mListTextIndex].c_str());
+				
 				if (++mListTextIndex >= 3)
 					mListTextIndex = 0;
 			}

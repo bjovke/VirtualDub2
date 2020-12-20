@@ -499,8 +499,7 @@ bool VDVideoDisplayMinidriverD3DFX::Init(HWND hwnd, HMONITOR hmonitor, const VDV
 	tpD3DXCreateEffectCompilerFromFileA pD3DXCreateEffectCompilerFromFileA = NULL;
 	tpD3DXCreateEffectCompilerFromFileW pD3DXCreateEffectCompilerFromFileW = NULL;
 
-	if (VDIsWindowsNT())
-		pD3DXCreateEffectCompilerFromFileW = (tpD3DXCreateEffectCompilerFromFileW)GetProcAddress(mhmodD3DX, "D3DXCreateEffectCompilerFromFileW");
+	pD3DXCreateEffectCompilerFromFileW = (tpD3DXCreateEffectCompilerFromFileW)GetProcAddress(mhmodD3DX, "D3DXCreateEffectCompilerFromFileW");
 
 	if (!pD3DXCreateEffectCompilerFromFileW) {
 		pD3DXCreateEffectCompilerFromFileA = (tpD3DXCreateEffectCompilerFromFileA)GetProcAddress(mhmodD3DX, "D3DXCreateEffectCompilerFromFileA");
@@ -1412,10 +1411,8 @@ void VDVideoDisplayMinidriverD3DFX::DisplayError() {
 	}
 
 	HINSTANCE hInst = VDGetLocalModuleHandleW32();
-	if (VDIsWindowsNT())
-		mhwndError = CreateWindowW(L"EDIT", mError.c_str(), WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_READONLY, 0, 0, mrClient.right, mrClient.bottom, mhwnd, NULL, hInst, NULL);
-	else
-		mhwndError = CreateWindowA("EDIT", VDTextWToA(mError).c_str(), WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_READONLY, 0, 0, mrClient.right, mrClient.bottom, mhwnd, NULL, hInst, NULL);
+
+	mhwndError = CreateWindowW(L"EDIT", mError.c_str(), WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_READONLY, 0, 0, mrClient.right, mrClient.bottom, mhwnd, NULL, hInst, NULL);
 
 	if (mhwndError)
 		SendMessage(mhwndError, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), 0);

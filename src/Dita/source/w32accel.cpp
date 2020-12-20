@@ -110,13 +110,8 @@ void VDUIGetAcceleratorStringInternal(const VDUIAccelerator& accel, VDStringW& s
 	if (accel.mModifiers & VDUIAccelerator::kModExtended)
 		lParam |= (1 << 24);
 
-	if (VDIsWindowsNT()) {
-		if (GetKeyNameTextW(lParam, buf.w, 1024))
-			s.append(buf.w);
-	} else {
-		if (GetKeyNameTextA(lParam, buf.a, 1024))
-			s.append(VDTextAToW(buf.a));
-	}
+	if (GetKeyNameTextW(lParam, buf.w, 1024))
+		s.append(buf.w);
 }
 
 void VDUIGetAcceleratorString(const VDUIAccelerator& accel, VDStringW& s) {

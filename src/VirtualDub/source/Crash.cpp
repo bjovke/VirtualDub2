@@ -254,17 +254,14 @@ void VDPatchSetUnhandledExceptionFilter() {
 
 	g_VDSUEFPatched = true;
 
-	// don't attempt to patch system DLLs on Windows 98
-	if (VDIsWindowsNT()) {
-		HMODULE hmodKernel32 = GetModuleHandleA("kernel32");
-		FARPROC fpSUEF = GetProcAddress(hmodKernel32, "SetUnhandledExceptionFilter");
+	HMODULE hmodKernel32 = GetModuleHandleA("kernel32");
+	FARPROC fpSUEF = GetProcAddress(hmodKernel32, "SetUnhandledExceptionFilter");
 
-		DWORD oldProtect;
-		if (VirtualProtect(fpSUEF, sizeof kVDSUEFPatch, PAGE_EXECUTE_READWRITE, &oldProtect)) {
-			memcpy(g_VDSUEFPatchSave, fpSUEF, sizeof kVDSUEFPatch);
-			memcpy(fpSUEF, kVDSUEFPatch, sizeof kVDSUEFPatch);
-			VirtualProtect(fpSUEF, sizeof kVDSUEFPatch, oldProtect, &oldProtect);
-		}
+	DWORD oldProtect;
+	if (VirtualProtect(fpSUEF, sizeof kVDSUEFPatch, PAGE_EXECUTE_READWRITE, &oldProtect)) {
+		memcpy(g_VDSUEFPatchSave, fpSUEF, sizeof kVDSUEFPatch);
+		memcpy(fpSUEF, kVDSUEFPatch, sizeof kVDSUEFPatch);
+		VirtualProtect(fpSUEF, sizeof kVDSUEFPatch, oldProtect, &oldProtect);
 	}
 }
 
@@ -1215,10 +1212,7 @@ public:
 class VDDebugCrashTextOutputFile : public VDDebugCrashTextOutput {
 public:
 	VDDebugCrashTextOutputFile(const char *pszFilename, const wchar_t *pwszFilename)
-		: mhFile(
-			VDIsWindowsNT() ? CreateFileW(pwszFilename, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)
-							: CreateFileA(pszFilename, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)
-		)
+		: mhFile(CreateFileW(pwszFilename, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL))
 		, mNext(0)
 		, mbError(mhFile == INVALID_HANDLE_VALUE)
 	{

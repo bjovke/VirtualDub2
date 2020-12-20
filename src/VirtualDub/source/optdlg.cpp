@@ -2617,30 +2617,16 @@ void VDDialogFileTextInfoW32::ReinitDialog() {
 		LVCOLUMNW w;
 	} lvc;
 
-	if (VDIsWindowsNT()) {
-		SendMessageW(hwndList, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
+	SendMessageW(hwndList, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
 
-		lvc.w.mask = LVCF_TEXT | LVCF_WIDTH;
-		lvc.w.pszText = L"Field";
-		lvc.w.cx = 50;
-		SendMessageW(hwndList, LVM_INSERTCOLUMNW, 0, (LPARAM)&lvc.w);
+	lvc.w.mask = LVCF_TEXT | LVCF_WIDTH;
+	lvc.w.pszText = L"Field";
+	lvc.w.cx = 50;
+	SendMessageW(hwndList, LVM_INSERTCOLUMNW, 0, (LPARAM)&lvc.w);
 
-		lvc.w.pszText = L"Text";
-		lvc.w.cx = 100;
-		SendMessageW(hwndList, LVM_INSERTCOLUMNW, 0, (LPARAM)&lvc.w);
-	} else {
-		SendMessageA(hwndList, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
-
-		lvc.a.mask = LVCF_TEXT | LVCF_WIDTH;
-		lvc.a.iSubItem = 0;
-		lvc.a.pszText = "Field";
-		lvc.a.cx = 50;
-		SendMessageA(hwndList, LVM_INSERTCOLUMNA, 0, (LPARAM)&lvc.a);
-
-		lvc.a.pszText = "Text";
-		lvc.a.cx = 100;
-		SendMessageA(hwndList, LVM_INSERTCOLUMNA, 0, (LPARAM)&lvc.a);
-	}
+	lvc.w.pszText = L"Text";
+	lvc.w.cx = 100;
+	SendMessageW(hwndList, LVM_INSERTCOLUMNW, 0, (LPARAM)&lvc.w);
 
 	for(int i=0; i<sizeof kFields / sizeof kFields[0]; ++i) {
 		union {
@@ -2648,39 +2634,22 @@ void VDDialogFileTextInfoW32::ReinitDialog() {
 			LVITEMW w;
 		} lvi;
 
-		if (VDIsWindowsNT()) {
-			VDStringW wtext(VDTextAToW(kFields[i].desc));
-			lvi.w.mask = LVIF_TEXT | LVIF_PARAM;
-			lvi.w.pszText = (LPWSTR)wtext.c_str();
-			lvi.w.iItem = i;
-			lvi.w.iSubItem = 0;
-			lvi.w.lParam = (LPARAM)kFields[i].fcc;
+		VDStringW wtext(VDTextAToW(kFields[i].desc));
+		lvi.w.mask = LVIF_TEXT | LVIF_PARAM;
+		lvi.w.pszText = (LPWSTR)wtext.c_str();
+		lvi.w.iItem = i;
+		lvi.w.iSubItem = 0;
+		lvi.w.lParam = (LPARAM)kFields[i].fcc;
 
-			SendMessageW(hwndList, LVM_INSERTITEMW, 0, (LPARAM)&lvi.w);
-		} else {
-			lvi.a.mask = LVIF_TEXT | LVIF_PARAM;
-			lvi.a.pszText = (LPSTR)kFields[i].desc;
-			lvi.a.iItem = i;
-			lvi.a.iSubItem = 0;
-			lvi.a.lParam = (LPARAM)kFields[i].fcc;
-
-			SendMessageA(hwndList, LVM_INSERTITEMA, 0, (LPARAM)&lvi.a);
-		}
-
+		SendMessageW(hwndList, LVM_INSERTITEMW, 0, (LPARAM)&lvi.w);
 		UpdateRow(i);
 	}
 
 	RedoColumnWidths();
 
-	if (VDIsWindowsNT()) {
-		mOldLVProc = (WNDPROC)GetWindowLongPtrW(mhwndList, GWLP_WNDPROC);
-		SetWindowLongPtrW(mhwndList, GWLP_USERDATA, (LONG_PTR)this);
-		SetWindowLongPtrW(mhwndList, GWLP_WNDPROC, (LONG_PTR)LVStaticWndProc);
-	} else {
-		mOldLVProc = (WNDPROC)GetWindowLongPtrA(mhwndList, GWLP_WNDPROC);
-		SetWindowLongPtrA(mhwndList, GWLP_USERDATA, (LONG_PTR)this);
-		SetWindowLongPtrA(mhwndList, GWLP_WNDPROC, (LONG_PTR)LVStaticWndProc);
-	}
+	mOldLVProc = (WNDPROC)GetWindowLongPtrW(mhwndList, GWLP_WNDPROC);
+	SetWindowLongPtrW(mhwndList, GWLP_USERDATA, (LONG_PTR)this);
+	SetWindowLongPtrW(mhwndList, GWLP_WNDPROC, (LONG_PTR)LVStaticWndProc);
 }
 
 void VDDialogFileTextInfoW32::RedoColumnWidths() {
@@ -2721,37 +2690,19 @@ void VDDialogFileTextInfoW32::BeginEdit(int index) {
 
 	AdjustWindowRect(&r, dwEditStyle, FALSE);
 
-	if (VDIsWindowsNT()) {
-		mhwndEdit = CreateWindowW(L"EDIT",
-				NULL,
-				dwEditStyle,
-				r.left,
-				r.top,
-				r.right - r.left,
-				r.bottom - r.top,
-				mhwndList, (HMENU)1, g_hInst, NULL);
-	} else {
-		mhwndEdit = CreateWindowA("EDIT",
-				NULL,
-				dwEditStyle,
-				r.left,
-				r.top,
-				r.right - r.left,
-				r.bottom - r.top,
-				mhwndList, (HMENU)1, g_hInst, NULL);
-	}
+	mhwndEdit = CreateWindowW(L"EDIT",
+			NULL,
+			dwEditStyle,
+			r.left,
+			r.top,
+			r.right - r.left,
+			r.bottom - r.top,
+			mhwndList, (HMENU)1, g_hInst, NULL);
 	
 	if (mhwndEdit) {
-		if (VDIsWindowsNT()) {
-			mOldEditProc = (WNDPROC)GetWindowLongPtrW(mhwndEdit, GWLP_WNDPROC);
-			SetWindowLongPtrW(mhwndEdit, GWLP_USERDATA, (LONG_PTR)this);
-			SetWindowLongPtrW(mhwndEdit, GWLP_WNDPROC, (LONG_PTR)LVStaticEditProc);
-		} else {
-			mOldEditProc = (WNDPROC)GetWindowLongPtrA(mhwndEdit, GWLP_WNDPROC);
-			SetWindowLongPtrA(mhwndEdit, GWLP_USERDATA, (LONG_PTR)this);
-			SetWindowLongPtrA(mhwndEdit, GWLP_WNDPROC, (LONG_PTR)LVStaticEditProc);
-		}
-
+		mOldEditProc = (WNDPROC)GetWindowLongPtrW(mhwndEdit, GWLP_WNDPROC);
+		SetWindowLongPtrW(mhwndEdit, GWLP_USERDATA, (LONG_PTR)this);
+		SetWindowLongPtrW(mhwndEdit, GWLP_WNDPROC, (LONG_PTR)LVStaticEditProc);
 		SendMessage(mhwndEdit, WM_SETFONT, SendMessage(mhwndList, WM_GETFONT, 0, 0), MAKELPARAM(FALSE,0));
 
 		tTextInfo::iterator it(mTextInfo.find(mID));
@@ -2782,26 +2733,14 @@ void VDDialogFileTextInfoW32::EndEdit(bool write) {
 }
 
 void VDDialogFileTextInfoW32::UpdateRow(int index) {
-	union {
-		LVITEMA a;
-		LVITEMW w;
-	} lvi;
-
+	LVITEMW lvi;
 	uint32 id;
 
-	if (VDIsWindowsNT()) {
-		lvi.w.mask = LVIF_PARAM;
-		lvi.w.iItem = index;
-		lvi.w.iSubItem = 0;
-		SendMessageW(mhwndList, LVM_GETITEMW, 0, (LPARAM)&lvi.w);
-		id = lvi.w.lParam;
-	} else {
-		lvi.a.mask = LVIF_PARAM;
-		lvi.a.iItem = index;
-		lvi.a.iSubItem = 0;
-		SendMessageA(mhwndList, LVM_GETITEMA, 0, (LPARAM)&lvi.a);
-		id = lvi.a.lParam;
-	}
+	lvi.mask = LVIF_PARAM;
+	lvi.iItem = index;
+	lvi.iSubItem = 0;
+	SendMessageW(mhwndList, LVM_GETITEMW, 0, (LPARAM)&lvi);
+	id = lvi.lParam;
 
 	const wchar_t *text = L"";
 
@@ -2809,20 +2748,11 @@ void VDDialogFileTextInfoW32::UpdateRow(int index) {
 	if (it != mTextInfo.end())
 		text = (*it).second.c_str();
 
-	if (VDIsWindowsNT()) {
-		lvi.w.mask = LVIF_TEXT;
-		lvi.w.iSubItem = 1;
-		lvi.w.pszText = (LPWSTR)text;
-		SendMessageW(mhwndList, LVM_SETITEMW, 0, (LPARAM)&lvi.w);
-		id = lvi.w.lParam;
-	} else {
-		VDStringA textA(VDTextWToA(text));
-		lvi.a.mask = LVIF_TEXT;
-		lvi.a.iSubItem = 1;
-		lvi.a.pszText = (LPSTR)textA.c_str();
-		SendMessageA(mhwndList, LVM_SETITEMA, 0, (LPARAM)&lvi.a);
-		id = lvi.a.lParam;
-	}
+	lvi.mask = LVIF_TEXT;
+	lvi.iSubItem = 1;
+	lvi.pszText = (LPWSTR)text;
+	SendMessageW(mhwndList, LVM_SETITEMW, 0, (LPARAM)&lvi);
+	id = lvi.lParam;
 }
 
 INT_PTR VDDialogFileTextInfoW32::DlgProc(UINT message, WPARAM wParam, LPARAM lParam) {

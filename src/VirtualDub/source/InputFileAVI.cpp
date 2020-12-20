@@ -524,10 +524,7 @@ void InputFileAVI::Init(const wchar_t *szFile) {
 		{
 			VDExternalCodeBracket bracket(L"An AVIFile input handler", __FILE__, __LINE__);
 
-			if (VDIsWindowsNT())
-				err = AVIFileOpenW(&paf, szFile, OF_READ, NULL);
-			else
-				err = AVIFileOpen(&paf, VDTextWToA(szFile).c_str(), OF_READ, NULL);
+			err = AVIFileOpenW(&paf, szFile, OF_READ, NULL);
 		}
 
 		if (err)

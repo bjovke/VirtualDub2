@@ -1073,10 +1073,7 @@ LRESULT VDDialogBaseW32::ActivateDialog(VDGUIHandle hParent) {
 }
 
 LRESULT VDDialogBaseW32::ActivateDialogDual(VDGUIHandle hParent) {
-	if (VDIsWindowsNT())
-		return DialogBoxParamW(g_hInst, IS_INTRESOURCE(mpszDialogName) ? (LPCWSTR)mpszDialogName : VDTextAToW(mpszDialogName).c_str(), (HWND)hParent, StaticDlgProc, (LPARAM)this);
-	else
-		return DialogBoxParamA(g_hInst, mpszDialogName, (HWND)hParent, StaticDlgProc, (LPARAM)this);
+	return DialogBoxParamW(g_hInst, IS_INTRESOURCE(mpszDialogName) ? (LPCWSTR)mpszDialogName : VDTextAToW(mpszDialogName).c_str(), (HWND)hParent, StaticDlgProc, (LPARAM)this);
 }
 
 void VDDialogBaseW32::End(LRESULT res) {

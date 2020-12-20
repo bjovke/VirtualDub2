@@ -90,10 +90,7 @@ void VDUIListBoxW32::SetItemData(int index, uintptr data) {
 int VDUIListBoxW32::AddItem(const wchar_t *text, uintptr data) {
 	int idx;
 
-	if (VDIsWindowsNT())
-		idx = (int)SendMessageW(mhwnd, LB_ADDSTRING, 0, (LPARAM)text);
-	else
-		idx = (int)SendMessageA(mhwnd, LB_ADDSTRING, 0, (LPARAM)VDTextWToA(text).c_str());
+	idx = (int)SendMessageW(mhwnd, LB_ADDSTRING, 0, (LPARAM)text);
 
 	if (idx >= 0)
 		SendMessage(mhwnd, LB_SETITEMDATA, (WPARAM)idx, (LPARAM)data);
@@ -209,10 +206,7 @@ void VDUIComboBoxW32::SetItemData(int index, uintptr data) {
 int VDUIComboBoxW32::AddItem(const wchar_t *text, uintptr data) {
 	int sel;
 
-	if (VDIsWindowsNT())
-		sel = (int)SendMessageW(mhwnd, CB_ADDSTRING, 0, (LPARAM)text);
-	else
-		sel = (int)SendMessageA(mhwnd, CB_ADDSTRING, 0, (LPARAM)VDTextWToA(text).c_str());
+	sel = (int)SendMessageW(mhwnd, CB_ADDSTRING, 0, (LPARAM)text);
 
 	if (sel >= 0)
 		SendMessage(mhwnd, CB_SETITEMDATA, (WPARAM)sel, (LPARAM)data);

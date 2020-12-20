@@ -369,7 +369,7 @@ LRESULT VDUIBaseWindowW32::WndProc(UINT msg, WPARAM wParam, LPARAM lParam) {
 			goto handle_cancel;
 
 		case WM_NOTIFYFORMAT:
-			return VDIsWindowsNT() ? NFR_UNICODE : NFR_ANSI;
+			return NFR_UNICODE;
 
 		case WM_COMMAND:
 			// special handling for commands that have have keyboard equivalents in

@@ -571,7 +571,7 @@ void VDCLIProcessW32::Run(const char *name, const wchar_t *cmdLine, const wchar_
 
 	VDSignal launchEvent;
 
-	const DWORD flags = (VDIsWindowsNT() ? CREATE_NO_WINDOW : 0) | CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED;
+	const DWORD flags = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED;
 
 	STARTUPINFOW siw = { sizeof(STARTUPINFOW) };
 	siw.dwFlags = STARTF_USESHOWWINDOW;
