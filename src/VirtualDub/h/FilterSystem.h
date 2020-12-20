@@ -19,7 +19,7 @@
 #define f_VIRTUALDUB_FILTERSYSTEM_H
 
 #ifdef _MSC_VER
-	#pragma once
+#pragma once
 #endif
 
 #include <vd2/system/list.h>
@@ -44,126 +44,155 @@ class VDFilterSystemProcessNode;
 class VDTextOutputStream;
 class VDFilterFrameAllocatorProxy;
 
-class IVDFilterSystemScheduler : public IVDRefCount {
+class IVDFilterSystemScheduler : public IVDRefCount
+{
 public:
-	virtual void Reschedule() = 0;
-	virtual bool Block() = 0;
+  virtual void Reschedule() = 0;
+  virtual bool Block()      = 0;
 };
 
-class FilterSystem {
-	struct PrepareState;
+class FilterSystem
+{
+  struct PrepareState;
 
-	FilterSystem(const FilterSystem&);
-	FilterSystem& operator=(const FilterSystem&);
+  FilterSystem(const FilterSystem &);
+  FilterSystem &operator=(const FilterSystem &);
+
 public:
-	FilterSystem();
-	~FilterSystem();
+  FilterSystem();
+  ~FilterSystem();
 
-	void SetAccelEnabled(bool enable);
-	void SetVisualAccelDebugEnabled(bool enable);
+  void SetAccelEnabled(bool enable);
+  void SetVisualAccelDebugEnabled(bool enable);
 
-	/// Set the number of async threads to use. -1 disables, 0 is auto.
-	void SetAsyncThreadCount(sint32 threadsToUse);
-	void SetAsyncThreadPriority(int priority);
+  /// Set the number of async threads to use. -1 disables, 0 is auto.
+  void SetAsyncThreadCount(sint32 threadsToUse);
+  void SetAsyncThreadPriority(int priority);
 
-	void prepareLinearChain(VDFilterChainDesc *desc, uint32 src_width, uint32 src_height, VDPixmapFormatEx src_format, const VDFraction& sourceFrameRate, sint64 sourceFrameCount, const VDFraction& sourcePixelAspect);
-	static void prepareLinearEntry(PrepareState& state, VDFilterChainEntry *ent, bool accelEnabled, uint32 alignReq);
-	void initLinearChain(IVDFilterSystemScheduler *scheduler, uint32 filterStateFlags, VDFilterChainDesc *desc, IVDFilterFrameSource *src, uint32 src_width, uint32 src_height, VDPixmapFormatEx src_format, const uint32 *palette, const VDFraction& sourceFrameRate, sint64 sourceFrameCount, const VDFraction& sourcePixelAspect);
-	void ReadyFilters();
+  void prepareLinearChain(
+    VDFilterChainDesc *desc,
+    uint32             src_width,
+    uint32             src_height,
+    VDPixmapFormatEx   src_format,
+    const VDFraction & sourceFrameRate,
+    sint64             sourceFrameCount,
+    const VDFraction & sourcePixelAspect);
+  static void prepareLinearEntry(PrepareState &state, VDFilterChainEntry *ent, bool accelEnabled, uint32 alignReq);
+  void        initLinearChain(
+           IVDFilterSystemScheduler *scheduler,
+           uint32                    filterStateFlags,
+           VDFilterChainDesc *       desc,
+           IVDFilterFrameSource *    src,
+           uint32                    src_width,
+           uint32                    src_height,
+           VDPixmapFormatEx          src_format,
+           const uint32 *            palette,
+           const VDFraction &        sourceFrameRate,
+           sint64                    sourceFrameCount,
+           const VDFraction &        sourcePixelAspect);
+  void ReadyFilters();
 
-	bool RequestFrame(sint64 outputFrame, uint32 batchNumber, IVDFilterFrameClientRequest **creq);
+  bool RequestFrame(sint64 outputFrame, uint32 batchNumber, IVDFilterFrameClientRequest **creq);
 
-	enum RunResult {
-		kRunResult_Idle,		// All filters are idle.
-		kRunResult_Running,		// There are still filters to run, and some can be run on this thread.
-		kRunResult_Blocked,		// There are still filters to run, but all are waiting for asynchronous operation.
-		kRunResult_BatchLimited	// There are still filters to run, but all ready ones are blocked due to the specified batch limit.
-	};
+  enum RunResult
+  {
+    kRunResult_Idle,        // All filters are idle.
+    kRunResult_Running,     // There are still filters to run, and some can be run on this thread.
+    kRunResult_Blocked,     // There are still filters to run, but all are waiting for asynchronous operation.
+    kRunResult_BatchLimited // There are still filters to run, but all ready ones are blocked due to the specified batch
+                            // limit.
+  };
 
-	RunResult Run(const uint32 *batchNumberLimit, bool runToCompletion);
-	void Block();
+  RunResult Run(const uint32 *batchNumberLimit, bool runToCompletion);
+  void      Block();
 
-	void InvalidateCachedFrames(FilterInstance *startingFilter);
-	
-	void DumpStatus(VDTextOutputStream& os);
+  void InvalidateCachedFrames(FilterInstance *startingFilter);
 
-	void DeinitFilters();
-	void DeallocateBuffers();
-	const VDPixmapLayout& GetInputLayout() const;
-	const VDPixmapLayout& GetOutputLayout() const;
-	const VDFraction GetInputFrameRate() const;
-	bool isRunning() const;
-	bool isEmpty() const;
-	bool isTrimmedChain() const { return mbTrimmedChain; }
-	bool IsThreadingActive() const;
-	uint32 GetThreadCount() const;
+  void DumpStatus(VDTextOutputStream &os);
 
-	bool GetDirectFrameMapping(VDPosition outputFrame, VDPosition& sourceFrame, int& sourceIndex) const;
-	sint64	GetSourceFrame(sint64 outframe) const;
-	sint64	GetSymbolicFrame(sint64 outframe, IVDFilterFrameSource *source) const;
-	sint64	GetNearestUniqueFrame(sint64 outframe) const;
+  void                  DeinitFilters();
+  void                  DeallocateBuffers();
+  const VDPixmapLayout &GetInputLayout() const;
+  const VDPixmapLayout &GetOutputLayout() const;
+  const VDFraction      GetInputFrameRate() const;
+  bool                  isRunning() const;
+  bool                  isEmpty() const;
+  bool                  isTrimmedChain() const
+  {
+    return mbTrimmedChain;
+  }
+  bool   IsThreadingActive() const;
+  uint32 GetThreadCount() const;
 
-	const VDFraction GetOutputFrameRate() const;
-	const VDFraction GetOutputPixelAspect() const;
-	sint64	GetOutputFrameCount() const;
+  bool   GetDirectFrameMapping(VDPosition outputFrame, VDPosition &sourceFrame, int &sourceIndex) const;
+  sint64 GetSourceFrame(sint64 outframe) const;
+  sint64 GetSymbolicFrame(sint64 outframe, IVDFilterFrameSource *source) const;
+  sint64 GetNearestUniqueFrame(sint64 outframe) const;
+
+  const VDFraction GetOutputFrameRate() const;
+  const VDFraction GetOutputPixelAspect() const;
+  sint64           GetOutputFrameCount() const;
 
 private:
-	void AllocateVBitmaps(int count);
-	void AllocateBuffers(uint32 lTotalBufferNeeded);
+  void AllocateVBitmaps(int count);
+  void AllocateBuffers(uint32 lTotalBufferNeeded);
 
-	struct Bitmaps;
+  struct Bitmaps;
 
-	struct StreamTail {
-		IVDFilterFrameSource *mpSrc;
-		VDFilterFrameAllocatorProxy *mpProxy;
-	};
+  struct StreamTail
+  {
+    IVDFilterFrameSource *       mpSrc;
+    VDFilterFrameAllocatorProxy *mpProxy;
+  };
 
-	void AppendConversionFilter(StreamTail& tail, const VDPixmapLayout& dstLayout, bool normalize16=false);
-	void AppendAlignmentFilter(StreamTail& tail, const VDPixmapLayout& dstLayout, const VDPixmapLayout& srcLayout);
-	void AppendAccelUploadFilter(StreamTail& tail, const vdrect32& srcCrop);
-	void AppendAccelDownloadFilter(StreamTail& tail, const VDPixmapLayout& layout);
-	void AppendAccelConversionFilter(StreamTail& tail, int format);
+  void AppendConversionFilter(StreamTail &tail, const VDPixmapLayout &dstLayout, bool normalize16 = false);
+  void AppendAlignmentFilter(StreamTail &tail, const VDPixmapLayout &dstLayout, const VDPixmapLayout &srcLayout);
+  void AppendAccelUploadFilter(StreamTail &tail, const vdrect32 &srcCrop);
+  void AppendAccelDownloadFilter(StreamTail &tail, const VDPixmapLayout &layout);
+  void AppendAccelConversionFilter(StreamTail &tail, int format);
 
-	bool	mbFiltersInited;
-	bool	mbFiltersError;
-	bool	mbFiltersUseAcceleration;
-	bool	mbAccelDebugVisual;
-	bool	mbAccelEnabled;
-	bool	mbTrimmedChain;
-	sint32	mThreadsRequested;
-	sint32	mProcessNodes;
-	int		mThreadPriority;
+  bool   mbFiltersInited;
+  bool   mbFiltersError;
+  bool   mbFiltersUseAcceleration;
+  bool   mbAccelDebugVisual;
+  bool   mbAccelEnabled;
+  bool   mbTrimmedChain;
+  sint32 mThreadsRequested;
+  sint32 mProcessNodes;
+  int    mThreadPriority;
 
-	VDFraction	mOutputFrameRate;
-	VDFraction	mOutputPixelAspect;
-	sint64		mOutputFrameCount;
+  VDFraction mOutputFrameRate;
+  VDFraction mOutputPixelAspect;
+  sint64     mOutputFrameCount;
 
-	Bitmaps *mpBitmaps;
+  Bitmaps *mpBitmaps;
 
-	unsigned char *lpBuffer;
-	long lRequiredSize;
-	uint32	mFilterStateFlags;
+  unsigned char *lpBuffer;
+  long           lRequiredSize;
+  uint32         mFilterStateFlags;
 
-	struct FilterEntry {
-		vdrefptr<IVDFilterFrameSource> mpFilter;
-		vdfastvector<IVDFilterFrameSource *> mSources;
-	};
+  struct FilterEntry
+  {
+    vdrefptr<IVDFilterFrameSource>       mpFilter;
+    vdfastvector<IVDFilterFrameSource *> mSources;
+  };
 
-	typedef vdvector<FilterEntry> Filters;
-	Filters mFilters;
+  typedef vdvector<FilterEntry> Filters;
+  Filters                       mFilters;
 
-	struct ActiveFilterEntry {
-		IVDFilterFrameSource *mpFrameSource;
-		VDFilterSystemProcessNode *mpProcessNode;
-	};
+  struct ActiveFilterEntry
+  {
+    IVDFilterFrameSource *     mpFrameSource;
+    VDFilterSystemProcessNode *mpProcessNode;
+  };
 
-	typedef vdfastvector<ActiveFilterEntry> ActiveFilters;
-	ActiveFilters mActiveFilters;
+  typedef vdfastvector<ActiveFilterEntry> ActiveFilters;
+  ActiveFilters                           mActiveFilters;
 
-	uint32	mPalette[256];
+  uint32 mPalette[256];
 
-	struct RunState;
-	int RunNode(VDFilterSystemProcessNode* node, IVDFilterFrameSource* source, int index, RunState& state);
+  struct RunState;
+  int RunNode(VDFilterSystemProcessNode *node, IVDFilterFrameSource *source, int index, RunState &state);
 };
 
 #endif

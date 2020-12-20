@@ -33,248 +33,266 @@ class IVDVideoCompressor;
 //
 ///////////////////////////////////////////////////////////////////////////
 
-template<class T>
-class VDRenderBufferAllocator : public vdrefcounted<IVDRefCount> {
+template<class T> class VDRenderBufferAllocator : public vdrefcounted<IVDRefCount>
+{
 public:
-	VDRenderBufferAllocator();
-	~VDRenderBufferAllocator();
+  VDRenderBufferAllocator();
+  ~VDRenderBufferAllocator();
 
-	void Init(int count);
-	void Shutdown();
+  void Init(int count);
+  void Shutdown();
 
-	bool AllocFrame(int timeout, T **ppFrame);
-	bool FreeFrame(T *buffer);
+  bool AllocFrame(int timeout, T **ppFrame);
+  bool FreeFrame(T *buffer);
 
 protected:
-	vdfastvector<T *>	mBuffers;
+  vdfastvector<T *> mBuffers;
 
-	int					mOutstandingBufferCount;
-	VDSemaphore			mBufferCount;
-	VDCriticalSection	mMutex;
-	bool mbActive;
+  int               mOutstandingBufferCount;
+  VDSemaphore       mBufferCount;
+  VDCriticalSection mMutex;
+  bool              mbActive;
 };
 
 template<class T>
-VDRenderBufferAllocator<T>::VDRenderBufferAllocator()
-	: mBufferCount(0)
-	, mOutstandingBufferCount(0)
-	, mbActive(true)
+VDRenderBufferAllocator<T>::VDRenderBufferAllocator() : mBufferCount(0), mOutstandingBufferCount(0), mbActive(true)
+{}
+
+template<class T> VDRenderBufferAllocator<T>::~VDRenderBufferAllocator()
 {
+  Shutdown();
 }
 
-template<class T>
-VDRenderBufferAllocator<T>::~VDRenderBufferAllocator() {
-	Shutdown();
+template<class T> void VDRenderBufferAllocator<T>::Init(int count)
+{
+  vdsynchronized(mMutex)
+  {
+    // Prereserve the buffers array to decrease the chances that we'll hit OOM while
+    // trying to free a buffer in a dtor (leads to terminate).
+    mBuffers.reserve(count);
+
+    mBufferCount.Reset(0);
+    mOutstandingBufferCount = count;
+    mbActive                = true;
+  }
 }
 
-template<class T>
-void VDRenderBufferAllocator<T>::Init(int count) {
-	vdsynchronized(mMutex) {
-		// Prereserve the buffers array to decrease the chances that we'll hit OOM while
-		// trying to free a buffer in a dtor (leads to terminate).
-		mBuffers.reserve(count);
+template<class T> void VDRenderBufferAllocator<T>::Shutdown()
+{
+  vdsynchronized(mMutex)
+  {
+    mbActive = false;
+    mBufferCount.Post();
 
-		mBufferCount.Reset(0);
-		mOutstandingBufferCount = count;
-		mbActive = true;
-	}
+    while (!mBuffers.empty())
+    {
+      T *buf = mBuffers.back();
+      mBuffers.pop_back();
+
+      delete buf;
+    }
+  }
 }
 
-template<class T>
-void VDRenderBufferAllocator<T>::Shutdown() {
-	vdsynchronized(mMutex) {
-		mbActive = false;
-		mBufferCount.Post();
+template<class T> bool VDRenderBufferAllocator<T>::AllocFrame(int timeout, T **ppFrame)
+{
+  T *buf = NULL;
 
-		while(!mBuffers.empty()) {
-			T *buf = mBuffers.back();
-			mBuffers.pop_back();
+  if (!mBufferCount.Wait(timeout))
+    return false;
 
-			delete buf;
-		}
-	}
+  vdsynchronized(mMutex)
+  {
+    if (!mbActive)
+    {
+      mBufferCount.Post();
+      return false;
+    }
+
+    VDASSERT(!mBuffers.empty());
+
+    buf = mBuffers.back();
+    mBuffers.pop_back();
+
+    ++mOutstandingBufferCount;
+  }
+
+  *ppFrame = buf;
+  buf->AddRef();
+  return true;
 }
 
-template<class T>
-bool VDRenderBufferAllocator<T>::AllocFrame(int timeout, T **ppFrame) {
-	T *buf = NULL;
+template<class T> bool VDRenderBufferAllocator<T>::FreeFrame(T *buffer)
+{
+  bool active = false;
+  vdsynchronized(mMutex)
+  {
+    active = mbActive;
+    if (active)
+      mBuffers.push_back(buffer);
 
-	if (!mBufferCount.Wait(timeout))
-		return false;
+    --mOutstandingBufferCount;
+  }
 
-	vdsynchronized(mMutex) {
-		if (!mbActive) {
-			mBufferCount.Post();
-			return false;
-		}
+  if (active)
+    mBufferCount.Post();
 
-		VDASSERT(!mBuffers.empty());
-
-		buf = mBuffers.back();
-		mBuffers.pop_back();
-
-		++mOutstandingBufferCount;
-	}
-
-	*ppFrame = buf;
-	buf->AddRef();
-	return true;
-}
-
-template<class T>
-bool VDRenderBufferAllocator<T>::FreeFrame(T *buffer) {
-	bool active = false;
-	vdsynchronized(mMutex) {
-		active = mbActive;
-		if (active)
-			mBuffers.push_back(buffer);
-
-		--mOutstandingBufferCount;
-	}
-
-	if (active)
-		mBufferCount.Post();
-
-	return active;
+  return active;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
 class VDRenderOutputBuffer;
 
-class VDRenderOutputBufferTracker : public VDRenderBufferAllocator<VDRenderOutputBuffer> {
+class VDRenderOutputBufferTracker : public VDRenderBufferAllocator<VDRenderOutputBuffer>
+{
 public:
-	void Init(void *base, const VDPixmap& px);
-	void Init(int count, const VDPixmapLayout& layout);
+  void Init(void *base, const VDPixmap &px);
+  void Init(int count, const VDPixmapLayout &layout);
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class VDRenderOutputBuffer : public VDVideoDisplayFrame {
+class VDRenderOutputBuffer : public VDVideoDisplayFrame
+{
 public:
-	VDRenderOutputBuffer(VDRenderOutputBufferTracker *tracker);
-	~VDRenderOutputBuffer();
+  VDRenderOutputBuffer(VDRenderOutputBufferTracker *tracker);
+  ~VDRenderOutputBuffer();
 
-	void Init(void *base, const VDPixmap& px);
-	void Init(const VDPixmapLayout& layout);
+  void Init(void *base, const VDPixmap &px);
+  void Init(const VDPixmapLayout &layout);
 
-	virtual int Release();
+  virtual int Release();
 
-	void *mpBase;
+  void *mpBase;
 
 public:
-	const vdrefptr<VDRenderOutputBufferTracker> mpTracker;
-	VDPixmapBuffer mBuffer;
-	VDPosition mTimelineFrame;
+  const vdrefptr<VDRenderOutputBufferTracker> mpTracker;
+  VDPixmapBuffer                              mBuffer;
+  VDPosition                                  mTimelineFrame;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
 class VDRenderPostCompressionBuffer;
 
-class VDRenderPostCompressionBufferAllocator : public VDRenderBufferAllocator<VDRenderPostCompressionBuffer> {
+class VDRenderPostCompressionBufferAllocator : public VDRenderBufferAllocator<VDRenderPostCompressionBuffer>
+{
 public:
-	void Init(int count, uint32 auxsize);
+  void Init(int count, uint32 auxsize);
 };
 
-class VDRenderPostCompressionBuffer : public vdrefcounted<IVDRefCount> {
+class VDRenderPostCompressionBuffer : public vdrefcounted<IVDRefCount>
+{
 public:
-	VDRenderPostCompressionBuffer(VDRenderPostCompressionBufferAllocator *tracker);
-	~VDRenderPostCompressionBuffer();
+  VDRenderPostCompressionBuffer(VDRenderPostCompressionBufferAllocator *tracker);
+  ~VDRenderPostCompressionBuffer();
 
-	virtual int Release();
+  virtual int Release();
 
-	uint32	mOutputSize;
-	VDPacketInfo packetInfo;
-	vdfastvector<char>	mOutputBuffer;
+  uint32             mOutputSize;
+  VDPacketInfo       packetInfo;
+  vdfastvector<char> mOutputBuffer;
 
 protected:
-	const vdrefptr<VDRenderPostCompressionBufferAllocator> mpTracker;
+  const vdrefptr<VDRenderPostCompressionBufferAllocator> mpTracker;
 };
 
 class VDThreadedVideoCompressorSlave;
 
-class VDThreadedVideoCompressor {
+class VDThreadedVideoCompressor
+{
 public:
-	enum FlushStatus {
-		kFlushStatusNone				= 0,
-		kFlushStatusLoopingDetected		= 1,
-		kFlushStatusAll					= 1
-	};
+  enum FlushStatus
+  {
+    kFlushStatusNone            = 0,
+    kFlushStatusLoopingDetected = 1,
+    kFlushStatusAll             = 1
+  };
 
-	VDThreadedVideoCompressor();
-	~VDThreadedVideoCompressor();
+  VDThreadedVideoCompressor();
+  ~VDThreadedVideoCompressor();
 
-	FlushStatus GetFlushStatus();
+  FlushStatus GetFlushStatus();
 
-	bool IsAsynchronous() const { return mThreadCount > 0; }
+  bool IsAsynchronous() const
+  {
+    return mThreadCount > 0;
+  }
 
-	void SetPriority(int priority);
+  void SetPriority(int priority);
 
-	void Init(int threads, IVDVideoCompressor *pBaseCompressor);
-	void Shutdown();
+  void Init(int threads, IVDVideoCompressor *pBaseCompressor);
+  void Shutdown();
 
-	void SetFlush(bool flush, VDRenderOutputBuffer *holdBuffer);
+  void SetFlush(bool flush, VDRenderOutputBuffer *holdBuffer);
 
-	void SkipFrame();
-	void Restart();
+  void SkipFrame();
+  void Restart();
 
-	bool ExchangeBuffer(VDRenderOutputBuffer *buffer, VDRenderPostCompressionBuffer **ppOutBuffer);
+  bool ExchangeBuffer(VDRenderOutputBuffer *buffer, VDRenderPostCompressionBuffer **ppOutBuffer);
 
-	VDEvent<VDThreadedVideoCompressor, bool>& OnFrameComplete() {
-		return mEventFrameComplete;
-	}
+  VDEvent<VDThreadedVideoCompressor, bool> &OnFrameComplete()
+  {
+    return mEventFrameComplete;
+  }
 
 public:
-	void RunSlave(IVDVideoCompressor *compressor);
+  void RunSlave(IVDVideoCompressor *compressor);
 
 protected:
-	typedef vdfastdeque<uint32> FrameTrackingQueue;
+  typedef vdfastdeque<uint32> FrameTrackingQueue;
 
-	bool ProcessFrame(VDRenderOutputBuffer *pBuffer, IVDVideoCompressor *pCompressor, VDRTProfileChannel *pProfileChannel, sint32 frameNumber, FrameTrackingQueue *frameTrackingQueue);
-	void FlushInputQueue();
-	void FlushOutputQueue();
+  bool ProcessFrame(
+    VDRenderOutputBuffer *pBuffer,
+    IVDVideoCompressor *  pCompressor,
+    VDRTProfileChannel *  pProfileChannel,
+    sint32                frameNumber,
+    FrameTrackingQueue *  frameTrackingQueue);
+  void FlushInputQueue();
+  void FlushOutputQueue();
 
-	VDThreadedVideoCompressorSlave *mpThreads;
-	int mThreadCount;
-	bool mbClientFlushInProgress;
+  VDThreadedVideoCompressorSlave *mpThreads;
+  int                             mThreadCount;
+  bool                            mbClientFlushInProgress;
 
-	IVDVideoCompressor *mpBaseCompressor;
+  IVDVideoCompressor *mpBaseCompressor;
 
-	vdrefptr<VDRenderPostCompressionBufferAllocator> mpAllocator;
-	vdrefptr<VDRenderOutputBuffer> mpFlushBuffer;
+  vdrefptr<VDRenderPostCompressionBufferAllocator> mpAllocator;
+  vdrefptr<VDRenderOutputBuffer>                   mpFlushBuffer;
 
-	VDSemaphore mBarrier;
+  VDSemaphore mBarrier;
 
-	VDAtomicInt	mFrameSkipCounter;
+  VDAtomicInt mFrameSkipCounter;
 
-	VDCriticalSection mMutex;
-	int mFramesSubmitted;
-	int mFramesProcessed;
-	int mFramesBufferedInFlush;
-	bool mbFlushInProgress;
-	bool mbLoopDetectedDuringFlush;
-	uint32	mNextInputFrameNumber;
-	uint32	mNextOutputFrameNumber;
-	uint32	mNextOutputAllocIndex;
+  VDCriticalSection mMutex;
+  int               mFramesSubmitted;
+  int               mFramesProcessed;
+  int               mFramesBufferedInFlush;
+  bool              mbFlushInProgress;
+  bool              mbLoopDetectedDuringFlush;
+  uint32            mNextInputFrameNumber;
+  uint32            mNextOutputFrameNumber;
+  uint32            mNextOutputAllocIndex;
 
-	bool mbInErrorState;
-	vdfastdeque<VDRenderOutputBuffer *> mInputBuffer;
+  bool                                mbInErrorState;
+  vdfastdeque<VDRenderOutputBuffer *> mInputBuffer;
 
-	struct OutputEntry {
-		VDRenderPostCompressionBuffer *mpBuffer;
-		bool mbCompleted;
-	};
+  struct OutputEntry
+  {
+    VDRenderPostCompressionBuffer *mpBuffer;
+    bool                           mbCompleted;
+  };
 
-	vdfastdeque<OutputEntry> mOutputBuffer;
-	VDSemaphore mInputBufferCount;
-	int mPriority;
+  vdfastdeque<OutputEntry> mOutputBuffer;
+  VDSemaphore              mInputBufferCount;
+  int                      mPriority;
 
-	MyError mError;
+  MyError mError;
 
-	VDEvent<VDThreadedVideoCompressor, bool> mEventFrameComplete;
+  VDEvent<VDThreadedVideoCompressor, bool> mEventFrameComplete;
 
-	vdfastvector<IVDVideoCompressor *> mClonedCodecs;
+  vdfastvector<IVDVideoCompressor *> mClonedCodecs;
 };
 
 #endif

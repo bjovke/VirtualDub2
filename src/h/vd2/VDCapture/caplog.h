@@ -22,19 +22,21 @@
 #include <vd2/system/vdtypes.h>
 #include <vd2/VDCapture/capdriver.h>
 
-struct VDCaptureLogStatistics {
-	double	mFrameRate;
-	double	mVideoStartTime;
-	double	mAudioStartTime;
+struct VDCaptureLogStatistics
+{
+  double mFrameRate;
+  double mVideoStartTime;
+  double mAudioStartTime;
 };
 
-class VDINTERFACE IVDCaptureLogFilter : public IVDCaptureDriverCallback {
+class VDINTERFACE IVDCaptureLogFilter : public IVDCaptureDriverCallback
+{
 public:
-	virtual ~IVDCaptureLogFilter() {}
+  virtual ~IVDCaptureLogFilter() {}
 
-	virtual void SetChildCallback(IVDCaptureDriverCallback *pChild) = 0;
+  virtual void SetChildCallback(IVDCaptureDriverCallback *pChild) = 0;
 
-	virtual void WriteLog(const wchar_t *pszName) = 0;
+  virtual void WriteLog(const wchar_t *pszName) = 0;
 };
 
 IVDCaptureLogFilter *VDCreateCaptureLogFilter();

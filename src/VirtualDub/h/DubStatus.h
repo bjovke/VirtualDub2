@@ -18,7 +18,8 @@
 #ifndef f_DUBSTATUS_H
 #define f_DUBSTATUS_H
 
-typedef void (*DubPositionCallback)(VDPosition start, VDPosition cur, VDPosition end, int progress, bool fast_update, void *cookie);
+typedef void (
+  *DubPositionCallback)(VDPosition start, VDPosition cur, VDPosition end, int progress, bool fast_update, void *cookie);
 
 class DubAudioStreamInfo;
 class DubVideoStreamInfo;
@@ -29,30 +30,32 @@ class AudioStream;
 class IDubber;
 class DubOptions;
 
-class VDINTERFACE IDubStatusHandler {
+class VDINTERFACE IDubStatusHandler
+{
 public:
-	virtual ~IDubStatusHandler() {}
-	virtual void InitLinks(DubAudioStreamInfo	*painfo,
-		DubVideoStreamInfo	*pvinfo,
-		AudioStream			*audioStreamSource,
+  virtual ~IDubStatusHandler() {}
+  virtual void InitLinks(
+    DubAudioStreamInfo *painfo,
+    DubVideoStreamInfo *pvinfo,
+    AudioStream *       audioStreamSource,
 
-		IDubber				*pDubber,
-		DubOptions			*opt)=0;
-	virtual void NotifyNewFrame(uint32 size, bool isKey)=0;
-	virtual HWND Display(HWND hwndParent, int iInitialPriority)=0;
-	virtual void Destroy()=0;
-	virtual void DeferDestroy(void** ref)=0;
-	virtual void SetPositionCallback(DubPositionCallback dpc, void *cookie)=0;
-	virtual bool ToggleStatus()=0;
-	virtual void SetLastPosition(VDPosition pos, bool fast_update)=0;
-	virtual void NotifyPositionChange(VDPosition pos)=0;
-	virtual void Freeze(bool failed, bool completed)=0;
-	virtual bool isVisible()=0;
-	virtual bool isFrameVisible(bool)=0;
-	virtual bool ToggleFrame(bool)=0;
-	virtual void OnBackgroundStateUpdated()=0;
-	virtual HWND GetHwnd()=0;
-	virtual bool IsNormalWindow()=0;
+    IDubber *   pDubber,
+    DubOptions *opt)                                                      = 0;
+  virtual void NotifyNewFrame(uint32 size, bool isKey)                    = 0;
+  virtual HWND Display(HWND hwndParent, int iInitialPriority)             = 0;
+  virtual void Destroy()                                                  = 0;
+  virtual void DeferDestroy(void **ref)                                   = 0;
+  virtual void SetPositionCallback(DubPositionCallback dpc, void *cookie) = 0;
+  virtual bool ToggleStatus()                                             = 0;
+  virtual void SetLastPosition(VDPosition pos, bool fast_update)          = 0;
+  virtual void NotifyPositionChange(VDPosition pos)                       = 0;
+  virtual void Freeze(bool failed, bool completed)                        = 0;
+  virtual bool isVisible()                                                = 0;
+  virtual bool isFrameVisible(bool)                                       = 0;
+  virtual bool ToggleFrame(bool)                                          = 0;
+  virtual void OnBackgroundStateUpdated()                                 = 0;
+  virtual HWND GetHwnd()                                                  = 0;
+  virtual bool IsNormalWindow()                                           = 0;
 };
 
 IDubStatusHandler *CreateDubStatusHandler();

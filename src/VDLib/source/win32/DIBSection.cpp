@@ -22,113 +22,118 @@
 #include <vd2/VDLib/win32/FileMapping.h>
 #include <vd2/Kasumi/pixmap.h>
 
-VDDIBSectionW32::VDDIBSectionW32()
-	: mpBits(NULL)
-	, mhbm(NULL)
-	, mhdc(NULL)
-	, mhgo(NULL)
-	, mbForceUnmap(false)
+VDDIBSectionW32::VDDIBSectionW32() : mpBits(NULL), mhbm(NULL), mhdc(NULL), mhgo(NULL), mbForceUnmap(false) {}
+
+VDDIBSectionW32::~VDDIBSectionW32()
 {
+  Shutdown();
 }
 
-VDDIBSectionW32::~VDDIBSectionW32() {
-	Shutdown();
+bool VDDIBSectionW32::Init(int w, int h, int depth, const VDFileMappingW32 *mapping, uint32 mapOffset)
+{
+  BITMAPINFO bi                = {0};
+  bi.bmiHeader.biSize          = sizeof(BITMAPINFOHEADER);
+  bi.bmiHeader.biWidth         = w;
+  bi.bmiHeader.biHeight        = h;
+  bi.bmiHeader.biPlanes        = 1;
+  bi.bmiHeader.biCompression   = BI_RGB;
+  bi.bmiHeader.biBitCount      = depth;
+  bi.bmiHeader.biSizeImage     = ((w * depth + 31) >> 5) * 4 * abs(h);
+  bi.bmiHeader.biXPelsPerMeter = 0;
+  bi.bmiHeader.biYPelsPerMeter = 0;
+  bi.bmiHeader.biClrUsed       = 0;
+  bi.bmiHeader.biClrImportant  = 0;
+
+  return Init(&bi, mapping, mapOffset);
 }
 
-bool VDDIBSectionW32::Init(int w, int h, int depth, const VDFileMappingW32 *mapping, uint32 mapOffset) {
-	BITMAPINFO bi = {0};
-	bi.bmiHeader.biSize				= sizeof(BITMAPINFOHEADER);
-	bi.bmiHeader.biWidth			= w;
-	bi.bmiHeader.biHeight			= h;
-	bi.bmiHeader.biPlanes			= 1;
-	bi.bmiHeader.biCompression		= BI_RGB;
-	bi.bmiHeader.biBitCount			= depth;
-	bi.bmiHeader.biSizeImage		= ((w * depth + 31) >> 5) * 4 * abs(h);
-	bi.bmiHeader.biXPelsPerMeter	= 0;
-	bi.bmiHeader.biYPelsPerMeter	= 0;
-	bi.bmiHeader.biClrUsed			= 0;
-	bi.bmiHeader.biClrImportant		= 0;
+bool VDDIBSectionW32::Init(const tagBITMAPINFO *bi, const VDFileMappingW32 *mapping, uint32 mapOffset)
+{
+  Shutdown();
 
-	return Init(&bi, mapping, mapOffset);
+  HDC hdc = GetDC(NULL);
+  mhdc    = CreateCompatibleDC(hdc);
+  if (mhdc)
+  {
+    HANDLE hMap = NULL;
+    if (mapping)
+      hMap = mapping->GetHandle();
+
+    mhbm = CreateDIBSection(hdc, bi, DIB_RGB_COLORS, &mpBits, hMap, mapOffset);
+    if (mhbm)
+    {
+      mbForceUnmap = (hMap != NULL);
+
+      mhgo = SelectObject(mhdc, mhbm);
+      if (mhgo)
+      {
+        ReleaseDC(NULL, hdc);
+
+        mWidth  = bi->bmiHeader.biWidth;
+        mHeight = abs(bi->bmiHeader.biHeight);
+        mDepth  = bi->bmiHeader.biBitCount;
+        mPitch  = ((mWidth * mDepth + 31) >> 5) * 4;
+        mpScan0 = mpBits;
+        if (bi->bmiHeader.biHeight >= 0)
+        {
+          mpScan0 = (char *)mpScan0 + mPitch * (mHeight - 1);
+          mPitch  = -mPitch;
+        }
+        return true;
+      }
+    }
+  }
+  ReleaseDC(NULL, hdc);
+
+  Shutdown();
+  return false;
 }
 
-bool VDDIBSectionW32::Init(const tagBITMAPINFO *bi, const VDFileMappingW32 *mapping, uint32 mapOffset) {
-	Shutdown();
+void VDDIBSectionW32::Shutdown()
+{
+  if (mhdc)
+  {
+    if (mhbm)
+    {
+      if (mhgo)
+      {
+        SelectObject(mhdc, mhgo);
+        mhgo = NULL;
+      }
 
-	HDC hdc = GetDC(NULL);
-	mhdc = CreateCompatibleDC(hdc);
-	if (mhdc) {
-		HANDLE hMap = NULL;
-		if (mapping)
-			hMap = mapping->GetHandle();
+      DeleteObject(mhbm);
+      mhbm = NULL;
 
-		mhbm = CreateDIBSection(hdc, bi, DIB_RGB_COLORS, &mpBits, hMap, mapOffset);
-		if (mhbm) {
-			mbForceUnmap = (hMap != NULL);
+      if (mbForceUnmap)
+      {
+        UnmapViewOfFile(mpBits);
 
-			mhgo = SelectObject(mhdc, mhbm);
-			if (mhgo) {
-				ReleaseDC(NULL, hdc);
+        mbForceUnmap = false;
+      }
 
-				mWidth		= bi->bmiHeader.biWidth;
-				mHeight		= abs(bi->bmiHeader.biHeight);
-				mDepth		= bi->bmiHeader.biBitCount;
-				mPitch		= ((mWidth * mDepth + 31) >> 5) * 4;
-				mpScan0		= mpBits;
-				if (bi->bmiHeader.biHeight >= 0) {
-					mpScan0 = (char *)mpScan0 + mPitch*(mHeight - 1);
-					mPitch = -mPitch;
-				}
-				return true;
-			}
-		}
-	}
-	ReleaseDC(NULL, hdc);
+      mpBits = NULL;
+    }
 
-	Shutdown();
-	return false;
+    DeleteDC(mhdc);
+    mhdc = NULL;
+  }
 }
 
-void VDDIBSectionW32::Shutdown() {
-	if (mhdc) {
-		if (mhbm) {
-			if (mhgo) {
-				SelectObject(mhdc, mhgo);
-				mhgo = NULL;
-			}
+VDPixmap VDDIBSectionW32::GetPixmap() const
+{
+  VDPixmap px;
 
-			DeleteObject(mhbm);
-			mhbm = NULL;
-
-			if (mbForceUnmap) {
-				UnmapViewOfFile(mpBits);
-
-				mbForceUnmap = false;
-			}
-
-			mpBits = NULL;
-		}
-
-		DeleteDC(mhdc);
-		mhdc = NULL;
-	}
-}
-
-VDPixmap VDDIBSectionW32::GetPixmap() const {
-	VDPixmap px;
-
-	px.data		= mpScan0;
-	px.pitch	= mPitch;
-	px.palette	= NULL;
-	px.w		= mWidth;
-	px.h		= mHeight;
-	px.format	= mDepth == 16 ? nsVDPixmap::kPixFormat_XRGB1555
-				: mDepth == 24 ? nsVDPixmap::kPixFormat_RGB888
-				: mDepth == 32 ? nsVDPixmap::kPixFormat_XRGB8888
-				: 0;
-	px.data2	= NULL;
-	px.pitch2	= 0;
-	px.data3	= NULL;
-	px.pitch3	= 0;
-	return px;
+  px.data    = mpScan0;
+  px.pitch   = mPitch;
+  px.palette = NULL;
+  px.w       = mWidth;
+  px.h       = mHeight;
+  px.format  = mDepth == 16 ?
+                nsVDPixmap::kPixFormat_XRGB1555 :
+                mDepth == 24 ? nsVDPixmap::kPixFormat_RGB888 : mDepth == 32 ? nsVDPixmap::kPixFormat_XRGB8888 : 0;
+  px.data2  = NULL;
+  px.pitch2 = 0;
+  px.data3  = NULL;
+  px.pitch3 = 0;
+  return px;
 }

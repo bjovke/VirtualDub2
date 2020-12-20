@@ -23,160 +23,167 @@
 #include "Histogram.h"
 #include <vd2/system/error.h>
 
-const char histo_log_table[]={
-8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
-8,8,8,8,8,8,8,8,7,7,7,7,7,7,7,7,
-7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-7,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-6,6,6,6,6,6,6,6,6,6,6,6,5,5,5,5,
-5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-5,5,5,5,5,5,5,5,5,5,5,4,4,4,4,4,
-4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
-4,4,4,4,4,4,4,4,4,4,4,3,3,3,3,3,
-3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
-3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,
-2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,
-1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+const char histo_log_table[] = {
+  8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+  6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4,
+  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 };
 
-const RGBQUAD Histogram::fore_colors[]={
-	{ 0xff, 0x00, 0x00 },
-	{ 0x00, 0xff, 0x00 },
-	{ 0x00, 0x00, 0xff },
-	{ 0xff, 0xff, 0xff },
+const RGBQUAD Histogram::fore_colors[] = {
+  {0xff, 0x00, 0x00},
+  {0x00, 0xff, 0x00},
+  {0x00, 0x00, 0xff},
+  {0xff, 0xff, 0xff},
 };
 
-Histogram::Histogram(HDC hDC, int max_height) {
-	struct {
-		BITMAPINFO bmi;
-		RGBQUAD bmiColor1;
-	} bmp;
+Histogram::Histogram(HDC hDC, int max_height)
+{
+  struct
+  {
+    BITMAPINFO bmi;
+    RGBQUAD    bmiColor1;
+  } bmp;
 
-	hBitmapGraph = NULL;
-	hDCGraph = NULL;
+  hBitmapGraph = NULL;
+  hDCGraph     = NULL;
 
-	bmp.bmi.bmiHeader.biSize			= sizeof(BITMAPINFOHEADER);
-	bmp.bmi.bmiHeader.biWidth			= 256;
-	bmp.bmi.bmiHeader.biHeight			= max_height;
-	bmp.bmi.bmiHeader.biPlanes			= 1;
-	bmp.bmi.bmiHeader.biBitCount		= 1;
-	bmp.bmi.bmiHeader.biCompression		= BI_RGB;
-	bmp.bmi.bmiHeader.biSizeImage		= max_height * 32;
-	bmp.bmi.bmiHeader.biXPelsPerMeter	= 80;
-	bmp.bmi.bmiHeader.biYPelsPerMeter	= 72;
-	bmp.bmi.bmiHeader.biClrUsed			= 2;
-	bmp.bmi.bmiHeader.biClrImportant	= 2;
-	bmp.bmi.bmiColors[0].rgbBlue = 0;
-	bmp.bmi.bmiColors[0].rgbGreen = 0;
-	bmp.bmi.bmiColors[0].rgbRed = 0;
-	bmp.bmiColor1.rgbBlue = 0;
-	bmp.bmiColor1.rgbGreen = 0;
-	bmp.bmiColor1.rgbRed = 0xff;
+  bmp.bmi.bmiHeader.biSize          = sizeof(BITMAPINFOHEADER);
+  bmp.bmi.bmiHeader.biWidth         = 256;
+  bmp.bmi.bmiHeader.biHeight        = max_height;
+  bmp.bmi.bmiHeader.biPlanes        = 1;
+  bmp.bmi.bmiHeader.biBitCount      = 1;
+  bmp.bmi.bmiHeader.biCompression   = BI_RGB;
+  bmp.bmi.bmiHeader.biSizeImage     = max_height * 32;
+  bmp.bmi.bmiHeader.biXPelsPerMeter = 80;
+  bmp.bmi.bmiHeader.biYPelsPerMeter = 72;
+  bmp.bmi.bmiHeader.biClrUsed       = 2;
+  bmp.bmi.bmiHeader.biClrImportant  = 2;
+  bmp.bmi.bmiColors[0].rgbBlue      = 0;
+  bmp.bmi.bmiColors[0].rgbGreen     = 0;
+  bmp.bmi.bmiColors[0].rgbRed       = 0;
+  bmp.bmiColor1.rgbBlue             = 0;
+  bmp.bmiColor1.rgbGreen            = 0;
+  bmp.bmiColor1.rgbRed              = 0xff;
 
-	if (!(hDCGraph = CreateCompatibleDC(hDC)))
-		throw MyError("Histogram: Couldn't create display context");
+  if (!(hDCGraph = CreateCompatibleDC(hDC)))
+    throw MyError("Histogram: Couldn't create display context");
 
-	if (!(hBitmapGraph = CreateDIBSection(hDC, &bmp.bmi, DIB_RGB_COLORS, (LPVOID *)&lpGraphBits, NULL, 0)))
-		throw MyError("Histogram: Couldn't allocate DIB section");
+  if (!(hBitmapGraph = CreateDIBSection(hDC, &bmp.bmi, DIB_RGB_COLORS, (LPVOID *)&lpGraphBits, NULL, 0)))
+    throw MyError("Histogram: Couldn't allocate DIB section");
 
-	SelectObject(hDCGraph, hBitmapGraph);
+  SelectObject(hDCGraph, hBitmapGraph);
 
-	this->max_height = max_height;
+  this->max_height = max_height;
 
-	SetMode(MODE_GRAY);
+  SetMode(MODE_GRAY);
 }
 
-Histogram::~Histogram() {
-	if (hBitmapGraph) DeleteObject(hBitmapGraph);
-	if (hDCGraph) DeleteDC(hDCGraph);
+Histogram::~Histogram()
+{
+  if (hBitmapGraph)
+    DeleteObject(hBitmapGraph);
+  if (hDCGraph)
+    DeleteDC(hDCGraph);
 }
 
-void Histogram::Zero() {
-	memset(histo, 0, sizeof histo);
-	total_pixels = 0;
+void Histogram::Zero()
+{
+  memset(histo, 0, sizeof histo);
+  total_pixels = 0;
 }
 
-void Histogram::Process(const VBitmap *vbmp) {
+void Histogram::Process(const VBitmap *vbmp)
+{
 #ifndef _M_IX86
-	Pixel c, *src = (Pixel *)vbmp->data;
-	long w, h;
+  Pixel c, *src = (Pixel *)vbmp->data;
+  long  w, h;
 
-	if (!vbmp->w || !vbmp->h) return;
+  if (!vbmp->w || !vbmp->h)
+    return;
 
-	h = vbmp->h; 
-	do {
-		w = vbmp->w;
-		do {
-			c = *src++;
-			++histo[(54*((c>>16)&255) + 183*((c>>8)&255) + 19*(c&255))>>8];
-		} while(--w);
+  h = vbmp->h;
+  do
+  {
+    w = vbmp->w;
+    do
+    {
+      c = *src++;
+      ++histo[(54 * ((c >> 16) & 255) + 183 * ((c >> 8) & 255) + 19 * (c & 255)) >> 8];
+    } while (--w);
 
-		src = (Pixel *)((char *)src + vbmp->modulo);
-	} while(--h);
+    src = (Pixel *)((char *)src + vbmp->modulo);
+  } while (--h);
 #else
 
-	if (histo_mode < MODE_GRAY)
-		asm_histogram_color_run((char *)vbmp->data + histo_mode, vbmp->w, vbmp->h, vbmp->pitch, histo);
-	else
-		asm_histogram_gray_run(vbmp->data, vbmp->w, vbmp->h, vbmp->pitch, histo);
+  if (histo_mode < MODE_GRAY)
+    asm_histogram_color_run((char *)vbmp->data + histo_mode, vbmp->w, vbmp->h, vbmp->pitch, histo);
+  else
+    asm_histogram_gray_run(vbmp->data, vbmp->w, vbmp->h, vbmp->pitch, histo);
 
 #endif
 
-	total_pixels += vbmp->w * vbmp->h;
+  total_pixels += vbmp->w * vbmp->h;
 }
 
-void Histogram::Process24(const VBitmap *vbmp) {
+void Histogram::Process24(const VBitmap *vbmp)
+{
 #ifndef _M_IX86
-	Pixel c, *src = (Pixel *)vbmp->data;
-	long w, h;
+  Pixel c, *src = (Pixel *)vbmp->data;
+  long  w, h;
 
-	if (!vbmp->w || !vbmp->h) return;
+  if (!vbmp->w || !vbmp->h)
+    return;
 
-	h = vbmp->h; 
-	do {
-		w = vbmp->w;
-		do {
-			c = *src++;
-			++histo[(54*((c>>16)&255) + 183*((c>>8)&255) + 19*(c&255))>>8];
-		} while(--w);
+  h = vbmp->h;
+  do
+  {
+    w = vbmp->w;
+    do
+    {
+      c = *src++;
+      ++histo[(54 * ((c >> 16) & 255) + 183 * ((c >> 8) & 255) + 19 * (c & 255)) >> 8];
+    } while (--w);
 
-		src = (Pixel *)((char *)src + vbmp->modulo);
-	} while(--h);
+    src = (Pixel *)((char *)src + vbmp->modulo);
+  } while (--h);
 #else
 
-	if (histo_mode < MODE_GRAY)
-		asm_histogram_color24_run((char *)vbmp->data + histo_mode, vbmp->w, vbmp->h, vbmp->pitch, histo);
-	else
-		asm_histogram_gray24_run(vbmp->data, vbmp->w, vbmp->h, vbmp->pitch, histo);
+  if (histo_mode < MODE_GRAY)
+    asm_histogram_color24_run((char *)vbmp->data + histo_mode, vbmp->w, vbmp->h, vbmp->pitch, histo);
+  else
+    asm_histogram_gray24_run(vbmp->data, vbmp->w, vbmp->h, vbmp->pitch, histo);
 
 #endif
 
-	total_pixels += vbmp->w * vbmp->h;
+  total_pixels += vbmp->w * vbmp->h;
 }
 
-void Histogram::Process16(const VBitmap *vbmp) {
-	static const long pixmasks[3]={
-		0x001f,
-		0x03e0,
-		0x7c00,
-	};
+void Histogram::Process16(const VBitmap *vbmp)
+{
+  static const long pixmasks[3] = {
+    0x001f,
+    0x03e0,
+    0x7c00,
+  };
 
 #ifdef _M_IX86
-	if (histo_mode < MODE_GRAY)
-		asm_histogram16_run(vbmp->data, vbmp->w, vbmp->h, vbmp->pitch, histo, pixmasks[histo_mode]);
-	else
-		asm_histogram16_run(vbmp->data, vbmp->w, vbmp->h, vbmp->pitch, histo, 0x7fff);
+  if (histo_mode < MODE_GRAY)
+    asm_histogram16_run(vbmp->data, vbmp->w, vbmp->h, vbmp->pitch, histo, pixmasks[histo_mode]);
+  else
+    asm_histogram16_run(vbmp->data, vbmp->w, vbmp->h, vbmp->pitch, histo, 0x7fff);
 #else
 #pragma vdpragma_TODO("fixme")
 #endif
 
-	total_pixels += vbmp->w * vbmp->h;
+  total_pixels += vbmp->w * vbmp->h;
 }
 
-void Histogram::ComputeHeights(long *heights, long graph_height) {
+void Histogram::ComputeHeights(long *heights, long graph_height)
+{
 #if 0
 	long h;
 	double c = log(pow(2, 1.0/8.0));
@@ -196,125 +203,145 @@ void Histogram::ComputeHeights(long *heights, long graph_height) {
 //			heights[i] = (histo[i]*graph_height + total_pixels - 1) / total_pixels;
 	}
 #else
-	long h;
-	int s;
+  long h;
+  int  s;
 
-	for(int i=0; i<256; i++) {
-		if (!histo[i])
-			heights[i] = 0;
-		else {
-			if (histo[i] == total_pixels)
-				heights[i] = graph_height;
-			else {
-				h = MulDiv(histo[i], 0x10000000L, total_pixels);
+  for (int i = 0; i < 256; i++)
+  {
+    if (!histo[i])
+      heights[i] = 0;
+    else
+    {
+      if (histo[i] == total_pixels)
+        heights[i] = graph_height;
+      else
+      {
+        h = MulDiv(histo[i], 0x10000000L, total_pixels);
 
-				if (!h)
-					heights[i] = 1;
-				else {
-					s = -1;
+        if (!h)
+          heights[i] = 1;
+        else
+        {
+          s = -1;
 
-					while(h<0x10000000) {
-						h<<=1;
-						++s;
-					}
+          while (h < 0x10000000)
+          {
+            h <<= 1;
+            ++s;
+          }
 
-					h = graph_height - 8*s - histo_log_table[(h>>20) & 255];
-					if (h<1) h=1;
+          h = graph_height - 8 * s - histo_log_table[(h >> 20) & 255];
+          if (h < 1)
+            h = 1;
 
-					heights[i] = h;
-				}
-			}
+          heights[i] = h;
+        }
+      }
+    }
 
-		}
-
-//			heights[i] = (histo[i]*graph_height + total_pixels - 1) / total_pixels;
-	}
+    //			heights[i] = (histo[i]*graph_height + total_pixels - 1) / total_pixels;
+  }
 #endif
 }
 
-void Histogram::Draw(HDC hDC, LPRECT lpr) {
-	long heights[256];
+void Histogram::Draw(HDC hDC, LPRECT lpr)
+{
+  long heights[256];
 
 #if 1
-	int i,j;
+  int i, j;
 
-	ComputeHeights(heights, lpr->bottom - lpr->top);
+  ComputeHeights(heights, lpr->bottom - lpr->top);
 
-	GdiFlush();
+  GdiFlush();
 
-	memset(lpGraphBits, 0, 32*(lpr->bottom - lpr->top));
+  memset(lpGraphBits, 0, 32 * (lpr->bottom - lpr->top));
 
-	for(i=0; i<256; i++) {
-		char *lp = lpGraphBits + (i>>3);
-		char mask = (char)(0x80 >> (i&7));
+  for (i = 0; i < 256; i++)
+  {
+    char *lp   = lpGraphBits + (i >> 3);
+    char  mask = (char)(0x80 >> (i & 7));
 
-		j = heights[i];
-		if(j) do {
-			*lp |= mask;
-			lp += 32;
-		} while(--j);
-	}
+    j = heights[i];
+    if (j)
+      do
+      {
+        *lp |= mask;
+        lp += 32;
+      } while (--j);
+  }
 
-	BitBlt(hDC, lpr->left,lpr->top, 256, lpr->bottom-lpr->top, hDCGraph, 0, 0, SRCCOPY);
+  BitBlt(hDC, lpr->left, lpr->top, 256, lpr->bottom - lpr->top, hDCGraph, 0, 0, SRCCOPY);
 #else
-	long frac_accum, frac_inc;
-	long width = lpr->right - lpr->left;
-	long height = lpr->bottom - lpr->top;
-	HPEN hPenOld, hPenPositive, hPenNegative;
-	int i;
+  long frac_accum, frac_inc;
+  long width  = lpr->right - lpr->left;
+  long height = lpr->bottom - lpr->top;
+  HPEN hPenOld, hPenPositive, hPenNegative;
+  int  i;
 
-	frac_inc = width<256 ? 0xFFFFFF/(width-1) : (0x1000000+width/2)/width;
+  frac_inc = width < 256 ? 0xFFFFFF / (width - 1) : (0x1000000 + width / 2) / width;
 
-	ComputeHeights(heights, height);
+  ComputeHeights(heights, height);
 
-	hPenPositive = CreatePen(PS_SOLID, 0, RGB(255,0,0));
-	hPenNegative = CreatePen(PS_SOLID, 0, RGB(0,0,0));
+  hPenPositive = CreatePen(PS_SOLID, 0, RGB(255, 0, 0));
+  hPenNegative = CreatePen(PS_SOLID, 0, RGB(0, 0, 0));
 
-	if (hPenPositive && hPenNegative) {
-		hPenOld = SelectObject(hDC, hPenNegative);
+  if (hPenPositive && hPenNegative)
+  {
+    hPenOld = SelectObject(hDC, hPenNegative);
 
-		frac_accum = 0;
+    frac_accum = 0;
 
-		for(i=0; i<width; i++) {
-			if (heights[frac_accum>>16]<height) {
-				MoveToEx(hDC, lpr->left+i, lpr->top, NULL);
-				LineTo(hDC, lpr->left+i, lpr->top+(height-heights[frac_accum>>16]));
-			}
+    for (i = 0; i < width; i++)
+    {
+      if (heights[frac_accum >> 16] < height)
+      {
+        MoveToEx(hDC, lpr->left + i, lpr->top, NULL);
+        LineTo(hDC, lpr->left + i, lpr->top + (height - heights[frac_accum >> 16]));
+      }
 
-			frac_accum += frac_inc;
-		}
+      frac_accum += frac_inc;
+    }
 
-		SelectObject(hDC, hPenPositive);
+    SelectObject(hDC, hPenPositive);
 
-		frac_accum = 0;
+    frac_accum = 0;
 
-		for(i=0; i<width; i++) {
-			if (heights[frac_accum>>16]) {
-				MoveToEx(hDC, lpr->left+i, lpr->top+(height-heights[frac_accum>>16]), NULL);
-				LineTo(hDC, lpr->left+i, lpr->bottom);
-			}
+    for (i = 0; i < width; i++)
+    {
+      if (heights[frac_accum >> 16])
+      {
+        MoveToEx(hDC, lpr->left + i, lpr->top + (height - heights[frac_accum >> 16]), NULL);
+        LineTo(hDC, lpr->left + i, lpr->bottom);
+      }
 
-			frac_accum += frac_inc;
-		}
+      frac_accum += frac_inc;
+    }
 
-		SelectObject(hDC, hPenOld);
-	}
+    SelectObject(hDC, hPenOld);
+  }
 
-	if (hPenPositive) DeleteObject(hPenPositive);
-	if (hPenNegative) DeleteObject(hPenNegative);
+  if (hPenPositive)
+    DeleteObject(hPenPositive);
+  if (hPenNegative)
+    DeleteObject(hPenNegative);
 #endif
 }
 
-void Histogram::SetMode(int new_mode) {
-	if (new_mode == MODE_NEXT) {
-		if (++histo_mode >= NUM_MODES) histo_mode = 0;
-	} else
-		histo_mode = new_mode;
+void Histogram::SetMode(int new_mode)
+{
+  if (new_mode == MODE_NEXT)
+  {
+    if (++histo_mode >= NUM_MODES)
+      histo_mode = 0;
+  }
+  else
+    histo_mode = new_mode;
 
-	SetDIBColorTable(hDCGraph, 1, 1, &fore_colors[histo_mode]);
-
+  SetDIBColorTable(hDCGraph, 1, 1, &fore_colors[histo_mode]);
 }
 
-int Histogram::GetMode() {
-	return histo_mode;
+int Histogram::GetMode()
+{
+  return histo_mode;
 }

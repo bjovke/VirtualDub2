@@ -24,29 +24,32 @@
 class FilterInstance;
 class IVDPixmapViewDialog;
 
-struct VDFilterChainEntry : public vdrefcount {
-	VDFilterChainEntry();
+struct VDFilterChainEntry : public vdrefcount
+{
+  VDFilterChainEntry();
 
-	vdrefptr<FilterInstance> mpInstance;
-	vdvector<VDStringA> mSources;
-	VDStringA	mOutputName;
-	vdrefptr<IVDPixmapViewDialog> mpView;
+  vdrefptr<FilterInstance>      mpInstance;
+  vdvector<VDStringA>           mSources;
+  VDStringA                     mOutputName;
+  vdrefptr<IVDPixmapViewDialog> mpView;
 };
 
-class VDFilterChainDesc {
-	VDFilterChainDesc& operator=(const VDFilterChainDesc&);
+class VDFilterChainDesc
+{
+  VDFilterChainDesc &operator=(const VDFilterChainDesc &);
+
 public:
-	VDFilterChainDesc();
-	VDFilterChainDesc(const VDFilterChainDesc&);
-	~VDFilterChainDesc();
+  VDFilterChainDesc();
+  VDFilterChainDesc(const VDFilterChainDesc &);
+  ~VDFilterChainDesc();
 
-	bool IsEmpty() const;
+  bool IsEmpty() const;
 
-	void Clear();
-	void AddEntry(VDFilterChainEntry *ent);
+  void Clear();
+  void AddEntry(VDFilterChainEntry *ent);
 
-	typedef vdfastvector<VDFilterChainEntry *> Entries;
-	Entries mEntries;
+  typedef vdfastvector<VDFilterChainEntry *> Entries;
+  Entries                                    mEntries;
 };
 
 #endif

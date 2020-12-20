@@ -42,46 +42,91 @@ void VDDSPBlend8_Select(void *dst0, const void *src0, const void *src1, const vo
 void VDDSPBlend8_Lerp(void *dst0, const void *src0, const void *src1, const void *srcm, uint32 n16);
 
 template<class T>
-void VDDSPProcessPlane2(void *dst, ptrdiff_t dstpitch, const void *src, ptrdiff_t srcpitch, uint32 n16, uint32 h, const T& fn) {
-	do {
-		fn(dst, src, n16);
-		dst = (char *)dst + dstpitch;
-		src = (const char *)src + srcpitch;
-	} while(--h);
+void VDDSPProcessPlane2(
+  void *      dst,
+  ptrdiff_t   dstpitch,
+  const void *src,
+  ptrdiff_t   srcpitch,
+  uint32      n16,
+  uint32      h,
+  const T &   fn)
+{
+  do
+  {
+    fn(dst, src, n16);
+    dst = (char *)dst + dstpitch;
+    src = (const char *)src + srcpitch;
+  } while (--h);
 }
 
 template<class T>
-void VDDSPProcessPlane3(void *dst, ptrdiff_t dstpitch, const void *src1, ptrdiff_t src1pitch, const void *src2, ptrdiff_t src2pitch, uint32 n16, uint32 h, const T& fn) {
-	do {
-		fn(dst, src1, src2, n16);
+void VDDSPProcessPlane3(
+  void *      dst,
+  ptrdiff_t   dstpitch,
+  const void *src1,
+  ptrdiff_t   src1pitch,
+  const void *src2,
+  ptrdiff_t   src2pitch,
+  uint32      n16,
+  uint32      h,
+  const T &   fn)
+{
+  do
+  {
+    fn(dst, src1, src2, n16);
 
-		dst = (char *)dst + dstpitch;
-		src1 = (const char *)src1 + src1pitch;
-		src2 = (const char *)src2 + src2pitch;
-	} while(--h);
+    dst  = (char *)dst + dstpitch;
+    src1 = (const char *)src1 + src1pitch;
+    src2 = (const char *)src2 + src2pitch;
+  } while (--h);
 }
 
 template<class T, class U>
-void VDDSPProcessPlane3A(void *dst, ptrdiff_t dstpitch, const void *src1, ptrdiff_t src1pitch, const void *src2, ptrdiff_t src2pitch, uint32 n16, uint32 h, const T& fn, const U& arg) {
-	do {
-		fn(dst, src1, src2, n16, arg);
+void VDDSPProcessPlane3A(
+  void *      dst,
+  ptrdiff_t   dstpitch,
+  const void *src1,
+  ptrdiff_t   src1pitch,
+  const void *src2,
+  ptrdiff_t   src2pitch,
+  uint32      n16,
+  uint32      h,
+  const T &   fn,
+  const U &   arg)
+{
+  do
+  {
+    fn(dst, src1, src2, n16, arg);
 
-		dst = (char *)dst + dstpitch;
-		src1 = (const char *)src1 + src1pitch;
-		src2 = (const char *)src2 + src2pitch;
-	} while(--h);
+    dst  = (char *)dst + dstpitch;
+    src1 = (const char *)src1 + src1pitch;
+    src2 = (const char *)src2 + src2pitch;
+  } while (--h);
 }
 
 template<class T>
-void VDDSPProcessPlane4(void *dst, ptrdiff_t dstpitch, const void *src1, ptrdiff_t src1pitch, const void *src2, ptrdiff_t src2pitch, const void *src3, ptrdiff_t src3pitch, uint32 n16, uint32 h, const T& fn) {
-	do {
-		fn(dst, src1, src2, src3, n16);
+void VDDSPProcessPlane4(
+  void *      dst,
+  ptrdiff_t   dstpitch,
+  const void *src1,
+  ptrdiff_t   src1pitch,
+  const void *src2,
+  ptrdiff_t   src2pitch,
+  const void *src3,
+  ptrdiff_t   src3pitch,
+  uint32      n16,
+  uint32      h,
+  const T &   fn)
+{
+  do
+  {
+    fn(dst, src1, src2, src3, n16);
 
-		dst = (char *)dst + dstpitch;
-		src1 = (const char *)src1 + src1pitch;
-		src2 = (const char *)src2 + src2pitch;
-		src3 = (const char *)src3 + src3pitch;
-	} while(--h);
+    dst  = (char *)dst + dstpitch;
+    src1 = (const char *)src1 + src1pitch;
+    src2 = (const char *)src2 + src2pitch;
+    src3 = (const char *)src3 + src3pitch;
+  } while (--h);
 }
 
 #endif

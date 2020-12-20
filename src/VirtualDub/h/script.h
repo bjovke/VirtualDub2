@@ -19,13 +19,13 @@
 #define f_VIRTUALDUB_SCRIPT_H
 
 #ifdef _MSC_VER
-	#pragma once
+#pragma once
 #endif
 
 bool InitScriptSystem();
 void DeinitScriptSystem();
-void RunProject(const wchar_t *name, void *hwnd=0);
-void RunScript(const wchar_t *name, void *hwnd=0);
+void RunProject(const wchar_t *name, void *hwnd = 0);
+void RunScript(const wchar_t *name, void *hwnd = 0);
 void RunScriptMemory(const char *mem, int start_line, bool stopAtReloadMarker = false, bool partial = false);
 
 bool strfuzzycompare(const char *s, const char *t);

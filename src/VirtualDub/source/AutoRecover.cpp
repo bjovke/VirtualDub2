@@ -26,245 +26,289 @@
 #include "oshelper.h"
 #include "resource.h"
 
-extern const char g_szError[];
+extern const char    g_szError[];
 extern const wchar_t g_szWarningW[];
-extern VDProject *g_project;
+extern VDProject *   g_project;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class VDUIDialogAutoRecover : public VDDialogFrameW32 {
+class VDUIDialogAutoRecover : public VDDialogFrameW32
+{
 public:
-	VDUIDialogAutoRecover();
-	~VDUIDialogAutoRecover();
+  VDUIDialogAutoRecover();
+  ~VDUIDialogAutoRecover();
 
-	const wchar_t *GetRecoveryPath() const {
-		return mRecoveryPath.empty() ? NULL : mRecoveryPath.c_str();
-	}
+  const wchar_t *GetRecoveryPath() const
+  {
+    return mRecoveryPath.empty() ? NULL : mRecoveryPath.c_str();
+  }
 
-	bool Scan(const wchar_t *path);
+  bool Scan(const wchar_t *path);
 
 protected:
-	bool OnLoaded();
-	void OnDestroy();
-	void OnDataExchange(bool write);
-	bool OnCommand(uint32 id, uint32 extcode);
+  bool OnLoaded();
+  void OnDestroy();
+  void OnDataExchange(bool write);
+  bool OnCommand(uint32 id, uint32 extcode);
 
-	void OnItemSelectionChanged(VDUIProxyListView *source, int index);
+  void OnItemSelectionChanged(VDUIProxyListView *source, int index);
 
-	void UpdateEnables();
+  void UpdateEnables();
 
-	struct FileItem : public vdrefcounted<IVDUIListViewVirtualItem> {
-		VDStringW mFullPath;
-		VDStringW mDate;
-		VDStringW mTime;
+  struct FileItem : public vdrefcounted<IVDUIListViewVirtualItem>
+  {
+    VDStringW mFullPath;
+    VDStringW mDate;
+    VDStringW mTime;
 
-		void GetText(int subItem, VDStringW& s) const;
-	};
+    void GetText(int subItem, VDStringW &s) const;
+  };
 
-	struct FileItemPred {
-		bool operator()(const FileItem *x, const FileItem *y) const {
-			return x->mFullPath.comparei(y->mFullPath) < 0;
-		}
-	};
+  struct FileItemPred
+  {
+    bool operator()(const FileItem *x, const FileItem *y) const
+    {
+      return x->mFullPath.comparei(y->mFullPath) < 0;
+    }
+  };
 
-	typedef vdfastvector<FileItem *> FileItems;
-	FileItems mFileItems;
+  typedef vdfastvector<FileItem *> FileItems;
+  FileItems                        mFileItems;
 
-	VDUIProxyListView mList;
-	VDDelegate mDelItemSelectionChanged;
+  VDUIProxyListView mList;
+  VDDelegate        mDelItemSelectionChanged;
 
-	VDStringW	mRecoveryPath;
+  VDStringW mRecoveryPath;
 };
 
-void VDUIDialogAutoRecover::FileItem::GetText(int subItem, VDStringW& s) const {
-	switch(subItem) {
-		case 0:
-			s = VDFileSplitPath(mFullPath.c_str());
-			break;
-
-		case 1:
-			s = mDate;
-			break;
-
-		case 2:
-			s = mTime;
-			break;
-	}
-}
-
-VDUIDialogAutoRecover::VDUIDialogAutoRecover()
-	: VDDialogFrameW32(IDD_AUTORECOVER)
+void VDUIDialogAutoRecover::FileItem::GetText(int subItem, VDStringW &s) const
 {
-	mList.OnItemSelectionChanged() += mDelItemSelectionChanged.Bind(this, &VDUIDialogAutoRecover::OnItemSelectionChanged);
+  switch (subItem)
+  {
+    case 0:
+      s = VDFileSplitPath(mFullPath.c_str());
+      break;
+
+    case 1:
+      s = mDate;
+      break;
+
+    case 2:
+      s = mTime;
+      break;
+  }
 }
 
-VDUIDialogAutoRecover::~VDUIDialogAutoRecover() {
-	while(!mFileItems.empty()) {
-		FileItem *fi = mFileItems.back();
-		fi->Release();
-		mFileItems.pop_back();
-	}
+VDUIDialogAutoRecover::VDUIDialogAutoRecover() : VDDialogFrameW32(IDD_AUTORECOVER)
+{
+  mList.OnItemSelectionChanged() += mDelItemSelectionChanged.Bind(this, &VDUIDialogAutoRecover::OnItemSelectionChanged);
 }
 
-bool VDUIDialogAutoRecover::Scan(const wchar_t *path) {
-	VDDirectoryIterator it(VDMakePath(path, L"VirtualDub_AutoSave_*.vdproject").c_str());
-
-	while(it.Next()) {
-		if (it.IsDirectory())
-			continue;
-
-		// attempt to open the file; if we get a sharing violation, the
-		// process is still live
-		VDStringW path(it.GetFullPath());
-		VDFile f;
-		if (f.openNT(path.c_str())) {
-			f.close();
-
-			vdrefptr<FileItem> fi(new FileItem);
-			fi->mFullPath.swap(path);
-
-			VDExpandedDate ed(VDGetLocalDate(it.GetLastWriteDate()));
-			VDAppendLocalDateString(fi->mDate, ed);
-			VDAppendLocalTimeString(fi->mTime, ed);
-			mFileItems.push_back(fi);
-			fi.release();
-		}
-	}
-
-	return !mFileItems.empty();
+VDUIDialogAutoRecover::~VDUIDialogAutoRecover()
+{
+  while (!mFileItems.empty())
+  {
+    FileItem *fi = mFileItems.back();
+    fi->Release();
+    mFileItems.pop_back();
+  }
 }
 
-bool VDUIDialogAutoRecover::OnLoaded() {
-	AddProxy(&mList, IDC_LIST);
+bool VDUIDialogAutoRecover::Scan(const wchar_t *path)
+{
+  VDDirectoryIterator it(VDMakePath(path, L"VirtualDub_AutoSave_*.vdproject").c_str());
 
-	mList.SetFullRowSelectEnabled(true);
-	mList.InsertColumn(0, L"Filename", 0);
-	mList.InsertColumn(1, L"Date", 0);
-	mList.InsertColumn(2, L"Time", 0);
+  while (it.Next())
+  {
+    if (it.IsDirectory())
+      continue;
 
-	std::sort(mFileItems.begin(), mFileItems.end(), FileItemPred());
+    // attempt to open the file; if we get a sharing violation, the
+    // process is still live
+    VDStringW path(it.GetFullPath());
+    VDFile    f;
+    if (f.openNT(path.c_str()))
+    {
+      f.close();
 
-	for(FileItems::const_iterator it(mFileItems.begin()), itEnd(mFileItems.end()); it != itEnd; ++it) {
-		FileItem *item = *it;
+      vdrefptr<FileItem> fi(new FileItem);
+      fi->mFullPath.swap(path);
 
-		mList.InsertVirtualItem(-1, item);
-	}
+      VDExpandedDate ed(VDGetLocalDate(it.GetLastWriteDate()));
+      VDAppendLocalDateString(fi->mDate, ed);
+      VDAppendLocalTimeString(fi->mTime, ed);
+      mFileItems.push_back(fi);
+      fi.release();
+    }
+  }
 
-	mList.AutoSizeColumns();
-
-	UpdateEnables();
-
-	SetFocusToControl(IDC_LIST);
-	return true;
+  return !mFileItems.empty();
 }
 
-void VDUIDialogAutoRecover::OnDestroy() {
-	mList.Clear();
+bool VDUIDialogAutoRecover::OnLoaded()
+{
+  AddProxy(&mList, IDC_LIST);
+
+  mList.SetFullRowSelectEnabled(true);
+  mList.InsertColumn(0, L"Filename", 0);
+  mList.InsertColumn(1, L"Date", 0);
+  mList.InsertColumn(2, L"Time", 0);
+
+  std::sort(mFileItems.begin(), mFileItems.end(), FileItemPred());
+
+  for (FileItems::const_iterator it(mFileItems.begin()), itEnd(mFileItems.end()); it != itEnd; ++it)
+  {
+    FileItem *item = *it;
+
+    mList.InsertVirtualItem(-1, item);
+  }
+
+  mList.AutoSizeColumns();
+
+  UpdateEnables();
+
+  SetFocusToControl(IDC_LIST);
+  return true;
 }
 
-void VDUIDialogAutoRecover::OnDataExchange(bool write) {
-	if (write) {
-		FileItem *fi = static_cast<FileItem *>(mList.GetSelectedItem());
-
-		if (fi)
-			mRecoveryPath = fi->mFullPath;
-		else
-			mRecoveryPath.clear();
-	}
+void VDUIDialogAutoRecover::OnDestroy()
+{
+  mList.Clear();
 }
 
-bool VDUIDialogAutoRecover::OnCommand(uint32 id, uint32 extcode) {
-	switch(id) {
-		case IDC_DELETE:
-			if (FileItem *fi = static_cast<FileItem *>(mList.GetSelectedItem())) {
-				if (Confirm(L"Are you sure you want to delete this recovery file?", g_szWarningW)) {
-					try {
-						VDProject::DeleteProject(fi->mFullPath);
-					} catch(const MyError& e) {
-						e.post(mhdlg, g_szError);
-					}
+void VDUIDialogAutoRecover::OnDataExchange(bool write)
+{
+  if (write)
+  {
+    FileItem *fi = static_cast<FileItem *>(mList.GetSelectedItem());
 
-					mList.DeleteItem(mList.GetSelectedIndex());
-				}
-			}
-			return true;
-		
-		case IDC_DELETE_ALL:
-			if (Confirm(L"Are you sure you want to delete ALL recovery files?", g_szWarningW)) {
-				mList.Clear();
-
-				while(!mFileItems.empty()) {
-					FileItem *fi = mFileItems.back();
-
-					try {
-						VDProject::DeleteProject(fi->mFullPath);
-					} catch(const MyError&) {
-					}
-
-					fi->Release();
-
-					mFileItems.pop_back();
-				}
-				End(false);
-			}
-
-			return true;
-	}
-
-	return false;
+    if (fi)
+      mRecoveryPath = fi->mFullPath;
+    else
+      mRecoveryPath.clear();
+  }
 }
 
-void VDUIDialogAutoRecover::OnItemSelectionChanged(VDUIProxyListView *source, int index) {
-	UpdateEnables();
+bool VDUIDialogAutoRecover::OnCommand(uint32 id, uint32 extcode)
+{
+  switch (id)
+  {
+    case IDC_DELETE:
+      if (FileItem *fi = static_cast<FileItem *>(mList.GetSelectedItem()))
+      {
+        if (Confirm(L"Are you sure you want to delete this recovery file?", g_szWarningW))
+        {
+          try
+          {
+            VDProject::DeleteProject(fi->mFullPath);
+          }
+          catch (const MyError &e)
+          {
+            e.post(mhdlg, g_szError);
+          }
+
+          mList.DeleteItem(mList.GetSelectedIndex());
+        }
+      }
+      return true;
+
+    case IDC_DELETE_ALL:
+      if (Confirm(L"Are you sure you want to delete ALL recovery files?", g_szWarningW))
+      {
+        mList.Clear();
+
+        while (!mFileItems.empty())
+        {
+          FileItem *fi = mFileItems.back();
+
+          try
+          {
+            VDProject::DeleteProject(fi->mFullPath);
+          }
+          catch (const MyError &)
+          {
+          }
+
+          fi->Release();
+
+          mFileItems.pop_back();
+        }
+        End(false);
+      }
+
+      return true;
+  }
+
+  return false;
 }
 
-void VDUIDialogAutoRecover::UpdateEnables() {
-	bool selPresent = mList.GetSelectedIndex() >= 0;
+void VDUIDialogAutoRecover::OnItemSelectionChanged(VDUIProxyListView *source, int index)
+{
+  UpdateEnables();
+}
 
-	EnableControl(IDC_DELETE, selPresent);
-	EnableControl(IDOK, selPresent);
+void VDUIDialogAutoRecover::UpdateEnables()
+{
+  bool selPresent = mList.GetSelectedIndex() >= 0;
+
+  EnableControl(IDC_DELETE, selPresent);
+  EnableControl(IDOK, selPresent);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-VDStringW VDUIGetAutoRecoverPath() {
-	return VDStringW(VDGetDataPath());
+VDStringW VDUIGetAutoRecoverPath()
+{
+  return VDStringW(VDGetDataPath());
 }
 
-void VDUICheckForAutoRecoverFiles(VDGUIHandle h) {
-	VDUIDialogAutoRecover dlg;
+void VDUICheckForAutoRecoverFiles(VDGUIHandle h)
+{
+  VDUIDialogAutoRecover dlg;
 
-	bool filesAvailable = false;
+  bool filesAvailable = false;
 
-	try {
-		filesAvailable = dlg.Scan(VDUIGetAutoRecoverPath().c_str());
-	} catch(const MyError&) {
-		// just eat the error
-	}
+  try
+  {
+    filesAvailable = dlg.Scan(VDUIGetAutoRecoverPath().c_str());
+  }
+  catch (const MyError &)
+  {
+    // just eat the error
+  }
 
-	if (!filesAvailable)
-		return;
+  if (!filesAvailable)
+    return;
 
-	if (!dlg.ShowDialog(h))
-		return;
+  if (!dlg.ShowDialog(h))
+    return;
 
-	const wchar_t *path = dlg.GetRecoveryPath();
+  const wchar_t *path = dlg.GetRecoveryPath();
 
-	if (!path)
-		return;
+  if (!path)
+    return;
 
-	try {
-		g_project->OpenProject(path, true);
+  try
+  {
+    g_project->OpenProject(path, true);
 
-		try {
-			VDProject::DeleteProject(VDStringW(path));
-		} catch(const MyError&) {
-			// eat the error
-		}
-	} catch(const MyError& e) {
-		MyError e2;
-		e2.setf("The following error occurred while processing the recovery file. The recovery file will be preserved in case of another attempt.\n\n%s", e.gets());
+    try
+    {
+      VDProject::DeleteProject(VDStringW(path));
+    }
+    catch (const MyError &)
+    {
+      // eat the error
+    }
+  }
+  catch (const MyError &e)
+  {
+    MyError e2;
+    e2.setf(
+      "The following error occurred while processing the recovery file. The recovery file will be preserved in case of "
+      "another attempt.\n\n%s",
+      e.gets());
 
-		e2.post((VDZHWND)h, g_szError);
-	}
+    e2.post((VDZHWND)h, g_szError);
+  }
 }

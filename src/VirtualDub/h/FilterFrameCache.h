@@ -25,40 +25,47 @@
 class VDFilterFrameBuffer;
 class VDFilterFrameCache;
 
-struct VDFilterFrameBufferCacheHashNode : public vdlist_node {
-	VDFilterFrameBuffer *mpBuffer;
-	sint64 mKey;
+struct VDFilterFrameBufferCacheHashNode : public vdlist_node
+{
+  VDFilterFrameBuffer *mpBuffer;
+  sint64               mKey;
 };
 
-struct VDFilterFrameBufferCacheNode : public VDFilterFrameBufferCacheHashNode, public VDFilterFrameBufferCacheLinkNode {};
+struct VDFilterFrameBufferCacheNode : public VDFilterFrameBufferCacheHashNode, public VDFilterFrameBufferCacheLinkNode
+{
+};
 
-class VDFilterFrameCache {
-	VDFilterFrameCache(const VDFilterFrameCache&);
-	VDFilterFrameCache& operator=(const VDFilterFrameCache&);
+class VDFilterFrameCache
+{
+  VDFilterFrameCache(const VDFilterFrameCache &);
+  VDFilterFrameCache &operator=(const VDFilterFrameCache &);
+
 public:
-	VDFilterFrameCache();
-	~VDFilterFrameCache();
+  VDFilterFrameCache();
+  ~VDFilterFrameCache();
 
-	void Flush();
+  void Flush();
 
-	void Add(VDFilterFrameBuffer *buf, sint64 key);
-	void Remove(VDFilterFrameBuffer *buf);
+  void Add(VDFilterFrameBuffer *buf, sint64 key);
+  void Remove(VDFilterFrameBuffer *buf);
 
-	bool Lookup(sint64 key, VDFilterFrameBuffer **buffer);
-	void Evict(VDFilterFrameBufferCacheLinkNode *cacheLink);
+  bool Lookup(sint64 key, VDFilterFrameBuffer **buffer);
+  void Evict(VDFilterFrameBufferCacheLinkNode *cacheLink);
 
-	void InvalidateAllFrames();
+  void InvalidateAllFrames();
 
 protected:
-	VDFilterFrameBufferCacheNode *AllocateNode();
-	void FreeNode(VDFilterFrameBufferCacheNode *node);
+  VDFilterFrameBufferCacheNode *AllocateNode();
+  void                          FreeNode(VDFilterFrameBufferCacheNode *node);
 
-	enum { kBufferHashTableSize = 64 };
-	typedef vdlist<VDFilterFrameBufferCacheHashNode> HashNodes;
-	HashNodes mHashTable[kBufferHashTableSize];
+  enum
+  {
+    kBufferHashTableSize = 64
+  };
+  typedef vdlist<VDFilterFrameBufferCacheHashNode> HashNodes;
+  HashNodes                                        mHashTable[kBufferHashTableSize];
 
-	HashNodes mFreeNodes;
+  HashNodes mFreeNodes;
 };
 
-#endif	// f_VD2_FILTERFRAMECACHE_H
-
+#endif // f_VD2_FILTERFRAMECACHE_H

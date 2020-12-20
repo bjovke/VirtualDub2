@@ -5,9 +5,10 @@
 
 class IVDDisplayRenderer;
 
-class VDINTERFACE IVDDisplayCompositor : public IVDRefCount {
+class VDINTERFACE IVDDisplayCompositor : public IVDRefCount
+{
 public:
-	virtual void Composite(IVDDisplayRenderer& r) = 0;
+  virtual void Composite(IVDDisplayRenderer &r) = 0;
 };
 
 #endif

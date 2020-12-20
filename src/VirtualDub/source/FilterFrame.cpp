@@ -23,80 +23,90 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
-VDFilterFrameBuffer::VDFilterFrameBuffer()
-	: mpAllocator(NULL)
+VDFilterFrameBuffer::VDFilterFrameBuffer() : mpAllocator(NULL) {}
+
+VDFilterFrameBuffer::~VDFilterFrameBuffer() {}
+
+int VDFilterFrameBuffer::AddRef()
 {
+  int rc = vdrefcounted<IVDRefUnknown>::AddRef();
+  if (rc == 2)
+  {
+    if (mpAllocator)
+      mpAllocator->OnFrameBufferActive(this);
+  }
+
+  return rc;
 }
 
-VDFilterFrameBuffer::~VDFilterFrameBuffer() {
+int VDFilterFrameBuffer::Release()
+{
+  int rc = vdrefcounted<IVDRefUnknown>::Release();
+  if (rc == 1)
+  {
+    if (mpAllocator)
+      mpAllocator->OnFrameBufferIdle(this);
+  }
+
+  return rc;
 }
 
-int VDFilterFrameBuffer::AddRef() {
-	int rc = vdrefcounted<IVDRefUnknown>::AddRef();
-	if (rc == 2) {
-		if (mpAllocator)
-			mpAllocator->OnFrameBufferActive(this);
-	}
-
-	return rc;
+void *VDFilterFrameBuffer::AsInterface(uint32 iid)
+{
+  return NULL;
 }
 
-int VDFilterFrameBuffer::Release() {
-	int rc = vdrefcounted<IVDRefUnknown>::Release();
-	if (rc == 1) {
-		if (mpAllocator)
-			mpAllocator->OnFrameBufferIdle(this);
-	}
-
-	return rc;
+void VDFilterFrameBuffer::Shutdown()
+{
+  EvictFromCaches();
 }
 
-void *VDFilterFrameBuffer::AsInterface(uint32 iid) {
-	return NULL;
+void VDFilterFrameBuffer::SetAllocator(IVDFilterFrameAllocator *allocator)
+{
+  mpAllocator = allocator;
 }
 
-void VDFilterFrameBuffer::Shutdown() {
-	EvictFromCaches();
+void VDFilterFrameBuffer::AddCacheReference(VDFilterFrameBufferCacheLinkNode *cacheLink)
+{
+  mCaches.push_back(cacheLink);
 }
 
-void VDFilterFrameBuffer::SetAllocator(IVDFilterFrameAllocator *allocator) {
-	mpAllocator = allocator;
+void VDFilterFrameBuffer::RemoveCacheReference(VDFilterFrameBufferCacheLinkNode *cacheLink)
+{
+  VDASSERT(GetCacheReference(cacheLink->mpCache) == cacheLink);
+  mCaches.erase(cacheLink);
+  cacheLink->mListNodePrev = NULL;
+  cacheLink->mListNodeNext = NULL;
 }
 
-void VDFilterFrameBuffer::AddCacheReference(VDFilterFrameBufferCacheLinkNode *cacheLink) {
-	mCaches.push_back(cacheLink);
+VDFilterFrameBufferCacheLinkNode *VDFilterFrameBuffer::GetCacheReference(VDFilterFrameCache *cache)
+{
+  for (Caches::iterator it(mCaches.begin()), itEnd(mCaches.end()); it != itEnd; ++it)
+  {
+    VDFilterFrameBufferCacheLinkNode *linkNode = *it;
+
+    if (linkNode->mpCache == cache)
+      return linkNode;
+  }
+
+  return NULL;
 }
 
-void VDFilterFrameBuffer::RemoveCacheReference(VDFilterFrameBufferCacheLinkNode *cacheLink) {
-	VDASSERT(GetCacheReference(cacheLink->mpCache) == cacheLink);
-	mCaches.erase(cacheLink);
-	cacheLink->mListNodePrev = NULL;
-	cacheLink->mListNodeNext = NULL;
+bool VDFilterFrameBuffer::Steal(uint32 references)
+{
+  if (mRefCount > 1 + (int)references)
+    return false;
+
+  EvictFromCaches();
+  return true;
 }
 
-VDFilterFrameBufferCacheLinkNode *VDFilterFrameBuffer::GetCacheReference(VDFilterFrameCache *cache) {
-	for(Caches::iterator it(mCaches.begin()), itEnd(mCaches.end()); it != itEnd; ++it) {
-		VDFilterFrameBufferCacheLinkNode *linkNode = *it;
+void VDFilterFrameBuffer::EvictFromCaches()
+{
+  while (!mCaches.empty())
+  {
+    VDFilterFrameBufferCacheLinkNode *linkNode = mCaches.front();
 
-		if (linkNode->mpCache == cache)
-			return linkNode;
-	}
-
-	return NULL;
-}
-
-bool VDFilterFrameBuffer::Steal(uint32 references) {
-	if (mRefCount > 1 + (int)references)
-		return false;
-
-	EvictFromCaches();
-	return true;
-}
-
-void VDFilterFrameBuffer::EvictFromCaches() {
-	while(!mCaches.empty()) {
-		VDFilterFrameBufferCacheLinkNode *linkNode = mCaches.front();
-
-		linkNode->mpCache->Evict(linkNode);
-	}
+    linkNode->mpCache->Evict(linkNode);
+  }
 }

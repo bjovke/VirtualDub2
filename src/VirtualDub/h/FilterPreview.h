@@ -19,7 +19,7 @@
 #define f_VD2_FILTERPREVIEW_H
 
 #ifdef _MSC_VER
-	#pragma once
+#pragma once
 #endif
 
 #include <windows.h>
@@ -35,27 +35,33 @@ class IVDVideoDisplay;
 class VDTimeline;
 class IVDPixmapViewDialog;
 
-typedef void (__cdecl *PixmapViewDestroyCallback)(IVDPixmapViewDialog* view, void *pData);
+typedef void(__cdecl *PixmapViewDestroyCallback)(IVDPixmapViewDialog *view, void *pData);
 
-class IVDPixmapViewDialog : public IVDRefCount {
+class IVDPixmapViewDialog : public IVDRefCount
+{
 public:
-	virtual void Display(VDXHWND hwndParent, const wchar_t* title) = 0;
-	virtual void Destroy() = 0;
-	virtual void SetImage(VDPixmap& px) = 0;
-	virtual void SetDestroyCallback(PixmapViewDestroyCallback cb, void* cbData) = 0;
+  virtual void Display(VDXHWND hwndParent, const wchar_t *title)              = 0;
+  virtual void Destroy()                                                      = 0;
+  virtual void SetImage(VDPixmap &px)                                         = 0;
+  virtual void SetDestroyCallback(PixmapViewDestroyCallback cb, void *cbData) = 0;
 };
 
-class IVDVideoFilterPreviewDialog : public IVDRefCount {
+class IVDVideoFilterPreviewDialog : public IVDRefCount
+{
 public:
-	virtual IVDXFilterPreview2 *AsIVDXFilterPreview2() = 0;
-	virtual IFilterModPreview *AsIFilterModPreview() = 0;
-	virtual void SetInitialTime(VDTime t) = 0;
-	virtual void SetFilterList(HWND w) = 0;
-	virtual HWND GetHwnd() = 0;
-	virtual void RedoFrame2() = 0;
+  virtual IVDXFilterPreview2 *AsIVDXFilterPreview2()   = 0;
+  virtual IFilterModPreview * AsIFilterModPreview()    = 0;
+  virtual void                SetInitialTime(VDTime t) = 0;
+  virtual void                SetFilterList(HWND w)    = 0;
+  virtual HWND                GetHwnd()                = 0;
+  virtual void                RedoFrame2()             = 0;
 };
 
 bool VDCreatePixmapViewDialog(IVDPixmapViewDialog **);
-bool VDCreateVideoFilterPreviewDialog(FilterSystem *, VDFilterChainDesc *, FilterInstance *, IVDVideoFilterPreviewDialog **);
+bool VDCreateVideoFilterPreviewDialog(
+  FilterSystem *,
+  VDFilterChainDesc *,
+  FilterInstance *,
+  IVDVideoFilterPreviewDialog **);
 
 #endif

@@ -5,4 +5,4 @@
 
 void VDDisplayCreateBicubicTexture(uint32 *dst, int w, int srcw, bool swapRB);
 
-#endif	// f_VD2_VDDISPLAY_BICUBIC_H
+#endif // f_VD2_VDDISPLAY_BICUBIC_H

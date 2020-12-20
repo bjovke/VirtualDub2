@@ -4,239 +4,268 @@
 #include <stdio.h>
 
 #ifdef _M_AMD64
-	#define APPNAME "VirtualDub64.exe"
+#define APPNAME "VirtualDub64.exe"
 #else
-	#define APPNAME "VirtualDub.exe"
+#define APPNAME "VirtualDub.exe"
 #endif
 
-struct CopyHandles {
-	CRITICAL_SECTION *pWriteLock;
-	HANDLE hRead;
-	HANDLE hWrite;
+struct CopyHandles
+{
+  CRITICAL_SECTION *pWriteLock;
+  HANDLE            hRead;
+  HANDLE            hWrite;
 };
 
-DWORD WINAPI CopyThread(LPVOID p) {
-	CopyHandles ch = *(const CopyHandles *)p;
-	char buf[256];
+DWORD WINAPI CopyThread(LPVOID p)
+{
+  CopyHandles ch = *(const CopyHandles *)p;
+  char        buf[256];
 
-	for(;;) {
-		DWORD actual;
-		if (!ReadFile(ch.hRead, buf, 256, &actual, NULL))
-			break;
+  for (;;)
+  {
+    DWORD actual;
+    if (!ReadFile(ch.hRead, buf, 256, &actual, NULL))
+      break;
 
-		if (ch.pWriteLock)
-			EnterCriticalSection(ch.pWriteLock);
-		BOOL writeOk = WriteFile(ch.hWrite, buf, actual, &actual, NULL);
-		if (ch.pWriteLock)
-			LeaveCriticalSection(ch.pWriteLock);
-		if (!writeOk)
-			break;
-	}
+    if (ch.pWriteLock)
+      EnterCriticalSection(ch.pWriteLock);
+    BOOL writeOk = WriteFile(ch.hWrite, buf, actual, &actual, NULL);
+    if (ch.pWriteLock)
+      LeaveCriticalSection(ch.pWriteLock);
+    if (!writeOk)
+      break;
+  }
 
-	return 0;
+  return 0;
 }
 
-DWORD g_dwAppThread;
+DWORD            g_dwAppThread;
 CRITICAL_SECTION g_writeLock;
-bool g_bAbortCaught;
+bool             g_bAbortCaught;
 
-BOOL WINAPI CtrlHandler(DWORD dwCtrlType) {
-	static const char abortMsg[]="Attempting to abort, please wait....\r\n";
-	EnterCriticalSection(&g_writeLock);
-	DWORD actual;
-	WriteFile(GetStdHandle(STD_ERROR_HANDLE), abortMsg, sizeof(abortMsg)-1, &actual, NULL);
-	LeaveCriticalSection(&g_writeLock);
+BOOL WINAPI CtrlHandler(DWORD dwCtrlType)
+{
+  static const char abortMsg[] = "Attempting to abort, please wait....\r\n";
+  EnterCriticalSection(&g_writeLock);
+  DWORD actual;
+  WriteFile(GetStdHandle(STD_ERROR_HANDLE), abortMsg, sizeof(abortMsg) - 1, &actual, NULL);
+  LeaveCriticalSection(&g_writeLock);
 
-	g_bAbortCaught = true;
+  g_bAbortCaught = true;
 
-	if (g_dwAppThread) {
-		PostThreadMessage(g_dwAppThread, WM_QUIT, 0, 0);
-		return TRUE;
-	}
+  if (g_dwAppThread)
+  {
+    PostThreadMessage(g_dwAppThread, WM_QUIT, 0, 0);
+    return TRUE;
+  }
 
-	return FALSE;
+  return FALSE;
 }
 
-BOOL WINAPI SilentCtrlHandler(DWORD dwCtrlType) {
-	g_bAbortCaught = true;
-	return TRUE;
+BOOL WINAPI SilentCtrlHandler(DWORD dwCtrlType)
+{
+  g_bAbortCaught = true;
+  return TRUE;
 }
 
-bool WereWeRunFromExplorer() {
-	// try to guess whether we were run from Explorer:
-	//
-	// 1) cursor starts at top-left
-	//
-	CONSOLE_SCREEN_BUFFER_INFO conInfo;
-	if (!GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &conInfo))
-		return false;
+bool WereWeRunFromExplorer()
+{
+  // try to guess whether we were run from Explorer:
+  //
+  // 1) cursor starts at top-left
+  //
+  CONSOLE_SCREEN_BUFFER_INFO conInfo;
+  if (!GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &conInfo))
+    return false;
 
-	if (conInfo.dwCursorPosition.X || conInfo.dwCursorPosition.Y)
-		return false;
+  if (conInfo.dwCursorPosition.X || conInfo.dwCursorPosition.Y)
+    return false;
 
-	return true;
+  return true;
 }
 
-int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-	TCHAR exepath[MAX_PATH];
-	TCHAR exepath2[MAX_PATH];
-	TCHAR *fname;
+int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
+{
+  TCHAR  exepath[MAX_PATH];
+  TCHAR  exepath2[MAX_PATH];
+  TCHAR *fname;
 
-	GetModuleFileName(NULL, exepath, MAX_PATH);
-	GetFullPathName(exepath, MAX_PATH, exepath2, &fname);
-	lstrcpy(fname, _T(APPNAME));
+  GetModuleFileName(NULL, exepath, MAX_PATH);
+  GetFullPathName(exepath, MAX_PATH, exepath2, &fname);
+  lstrcpy(fname, _T(APPNAME));
 
-	HANDLE hOutputPipeRead;
-	HANDLE hOutputPipeWrite;
-	HANDLE hErrorPipeRead = NULL;
-	HANDLE hErrorPipeWrite = NULL;
-	HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-	HANDLE hStdError = GetStdHandle(STD_ERROR_HANDLE);
+  HANDLE hOutputPipeRead;
+  HANDLE hOutputPipeWrite;
+  HANDLE hErrorPipeRead  = NULL;
+  HANDLE hErrorPipeWrite = NULL;
+  HANDLE hStdOut         = GetStdHandle(STD_OUTPUT_HANDLE);
+  HANDLE hStdError       = GetStdHandle(STD_ERROR_HANDLE);
 
-	bool bRunFromExplorer = WereWeRunFromExplorer();
+  bool bRunFromExplorer = WereWeRunFromExplorer();
 
-	SECURITY_ATTRIBUTES sa={
-		sizeof(SECURITY_ATTRIBUTES), NULL, TRUE
-	};
+  SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
 
-	if (!CreatePipe(&hOutputPipeRead, &hOutputPipeWrite, &sa, 0))
-		return 5;
+  if (!CreatePipe(&hOutputPipeRead, &hOutputPipeWrite, &sa, 0))
+    return 5;
 
-	if (hStdError != hStdOut) {
-		if (!CreatePipe(&hErrorPipeRead,  &hErrorPipeWrite, &sa, 0))
-			return 5;
-	}
+  if (hStdError != hStdOut)
+  {
+    if (!CreatePipe(&hErrorPipeRead, &hErrorPipeWrite, &sa, 0))
+      return 5;
+  }
 
-	InitializeCriticalSection(&g_writeLock);
+  InitializeCriticalSection(&g_writeLock);
 
-	CopyHandles chOutput = { &g_writeLock, hOutputPipeRead, hStdOut };
-	CopyHandles chError = { &g_writeLock, hErrorPipeRead, hStdError };
+  CopyHandles chOutput = {&g_writeLock, hOutputPipeRead, hStdOut};
+  CopyHandles chError  = {&g_writeLock, hErrorPipeRead, hStdError};
 
-	DWORD dwOutputThread, dwErrorThread;
-	HANDLE hOutputThread = CreateThread(NULL, 65536, CopyThread, &chOutput, 0, &dwOutputThread);
-	HANDLE hErrorThread = NULL;
-	
-	if (hErrorPipeRead)
-		hErrorThread = CreateThread(NULL, 65536, CopyThread, &chError, 0, &dwErrorThread);
+  DWORD  dwOutputThread, dwErrorThread;
+  HANDLE hOutputThread = CreateThread(NULL, 65536, CopyThread, &chOutput, 0, &dwOutputThread);
+  HANDLE hErrorThread  = NULL;
 
-	// create command line
-	LPTSTR cmdLine = GetCommandLine();
-	bool quoted = false;
-	while(const TCHAR c = *cmdLine) {
-		if (c == '"') {
-			quoted = !quoted;
-			++cmdLine;
-			continue;
-		}
+  if (hErrorPipeRead)
+    hErrorThread = CreateThread(NULL, 65536, CopyThread, &chError, 0, &dwErrorThread);
 
-		if (!quoted && (c == ' ' || c == '\t'))
-			break;
+  // create command line
+  LPTSTR cmdLine = GetCommandLine();
+  bool   quoted  = false;
+  while (const TCHAR c = *cmdLine)
+  {
+    if (c == '"')
+    {
+      quoted = !quoted;
+      ++cmdLine;
+      continue;
+    }
 
-		++cmdLine;
-	}
+    if (!quoted && (c == ' ' || c == '\t'))
+      break;
 
-	// check if we have anything worthy after the command line; if so, don't do
-	// the pause-when-run-from-Explorer, as we may have been launched from a batch
-	// file or something else with an empty screen
-	LPCTSTR tailEnd = cmdLine;
-	while(const TCHAR c = *tailEnd) {
-		if (c != ' ' && c != '\t')
-			break;
-		++tailEnd;
-	}
+    ++cmdLine;
+  }
 
-	if (*tailEnd)
-		bRunFromExplorer = false;
+  // check if we have anything worthy after the command line; if so, don't do
+  // the pause-when-run-from-Explorer, as we may have been launched from a batch
+  // file or something else with an empty screen
+  LPCTSTR tailEnd = cmdLine;
+  while (const TCHAR c = *tailEnd)
+  {
+    if (c != ' ' && c != '\t')
+      break;
+    ++tailEnd;
+  }
 
-	static const TCHAR magicSwitch[] = _T(" /console /x");
-	static const size_t magicSwitchLen = sizeof magicSwitch / sizeof magicSwitch[0] - 1;
-	size_t cmdLineLen = lstrlen(cmdLine);
-	size_t appNameLen = lstrlen(exepath2);
-	LPTSTR newCmdLine = (LPTSTR)alloca(sizeof(TCHAR) * (cmdLineLen + appNameLen + magicSwitchLen + 3));
-	LPTSTR p = newCmdLine;
+  if (*tailEnd)
+    bRunFromExplorer = false;
 
-	*p++ = '"';
-	memcpy(p, exepath2, sizeof(TCHAR) * appNameLen);
-	p += appNameLen;
-	*p++ = '"';
-	memcpy(p, magicSwitch, sizeof(TCHAR) * magicSwitchLen);
-	p += magicSwitchLen;
-	memcpy(p, cmdLine, sizeof(TCHAR) * (cmdLineLen + 1));
+  static const TCHAR  magicSwitch[]  = _T(" /console /x");
+  static const size_t magicSwitchLen = sizeof magicSwitch / sizeof magicSwitch[0] - 1;
+  size_t              cmdLineLen     = lstrlen(cmdLine);
+  size_t              appNameLen     = lstrlen(exepath2);
+  LPTSTR              newCmdLine     = (LPTSTR)alloca(sizeof(TCHAR) * (cmdLineLen + appNameLen + magicSwitchLen + 3));
+  LPTSTR              p              = newCmdLine;
 
-	// create Ctrl+C handler
-	SetConsoleCtrlHandler(CtrlHandler, TRUE);
+  *p++ = '"';
+  memcpy(p, exepath2, sizeof(TCHAR) * appNameLen);
+  p += appNameLen;
+  *p++ = '"';
+  memcpy(p, magicSwitch, sizeof(TCHAR) * magicSwitchLen);
+  p += magicSwitchLen;
+  memcpy(p, cmdLine, sizeof(TCHAR) * (cmdLineLen + 1));
 
-	// kill error dialogs
-	UINT dwOldErrorMode = SetErrorMode(0);
-	SetErrorMode(dwOldErrorMode | SEM_FAILCRITICALERRORS);
+  // create Ctrl+C handler
+  SetConsoleCtrlHandler(CtrlHandler, TRUE);
 
-	// launch main VirtualDub exe
-	STARTUPINFO si = {sizeof(STARTUPINFO)};
-	si.wShowWindow	= SW_SHOWMINNOACTIVE;
-	si.hStdInput	= CreateFile(_T("nul"), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	si.hStdOutput	= hOutputPipeWrite;
-	si.hStdError	= hErrorPipeWrite;
-	si.dwFlags		= STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
-	PROCESS_INFORMATION pi;
+  // kill error dialogs
+  UINT dwOldErrorMode = SetErrorMode(0);
+  SetErrorMode(dwOldErrorMode | SEM_FAILCRITICALERRORS);
 
-	DWORD rc = 20;
+  // launch main VirtualDub exe
+  STARTUPINFO si = {sizeof(STARTUPINFO)};
+  si.wShowWindow = SW_SHOWMINNOACTIVE;
+  si.hStdInput   = CreateFile(
+    _T("nul"),
+    GENERIC_READ,
+    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+    NULL,
+    OPEN_ALWAYS,
+    FILE_ATTRIBUTE_NORMAL,
+    NULL);
+  si.hStdOutput = hOutputPipeWrite;
+  si.hStdError  = hErrorPipeWrite;
+  si.dwFlags    = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+  PROCESS_INFORMATION pi;
 
-	if (CreateProcess(exepath2, newCmdLine, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
-		CloseHandle(pi.hThread);
+  DWORD rc = 20;
 
-		g_dwAppThread = pi.dwThreadId;
-		WaitForSingleObject(pi.hProcess, INFINITE);
-		g_dwAppThread = 0;
+  if (CreateProcess(exepath2, newCmdLine, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
+  {
+    CloseHandle(pi.hThread);
 
-		GetExitCodeProcess(pi.hProcess, &rc);
+    g_dwAppThread = pi.dwThreadId;
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    g_dwAppThread = 0;
 
-		CloseHandle(pi.hProcess);
-	} else {
-		TCHAR *msg;
+    GetExitCodeProcess(pi.hProcess, &rc);
 
-		if (FormatMessage(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER, NULL, GetLastError(), 0, (LPTSTR)&msg, 0, NULL)) {
-			static const TCHAR pretext[]=_T("Cannot launch ") _T(APPNAME) _T(": ");
-			DWORD actual;
-			WriteFile(hStdOut, pretext, sizeof pretext / sizeof pretext[0] - 1, &actual, NULL);
-			WriteFile(hStdOut, msg, lstrlen(msg), &actual, NULL);
-			LocalFree((HLOCAL)msg);
-		}
-	}
+    CloseHandle(pi.hProcess);
+  }
+  else
+  {
+    TCHAR *msg;
 
-	if (g_bAbortCaught && !rc)
-		rc = 5;
+    if (FormatMessage(
+          FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+          NULL,
+          GetLastError(),
+          0,
+          (LPTSTR)&msg,
+          0,
+          NULL))
+    {
+      static const TCHAR pretext[] = _T("Cannot launch ") _T(APPNAME) _T(": ");
+      DWORD              actual;
+      WriteFile(hStdOut, pretext, sizeof pretext / sizeof pretext[0] - 1, &actual, NULL);
+      WriteFile(hStdOut, msg, lstrlen(msg), &actual, NULL);
+      LocalFree((HLOCAL)msg);
+    }
+  }
 
-	// close pipes first to break any blocking console I/O call in the main
-	// app
-	CloseHandle(hOutputPipeWrite);
-	if (hErrorPipeWrite)
-		CloseHandle(hErrorPipeWrite);
+  if (g_bAbortCaught && !rc)
+    rc = 5;
 
-	// wait for VirtualDub to terminate; use alertable wait so we see Ctrl+C
-	WaitForSingleObjectEx(hOutputThread, INFINITE, TRUE);
+  // close pipes first to break any blocking console I/O call in the main
+  // app
+  CloseHandle(hOutputPipeWrite);
+  if (hErrorPipeWrite)
+    CloseHandle(hErrorPipeWrite);
 
-	// swap Ctrl+C handlers
-	SetConsoleCtrlHandler(CtrlHandler, FALSE);
-	SetConsoleCtrlHandler(SilentCtrlHandler, TRUE);
+  // wait for VirtualDub to terminate; use alertable wait so we see Ctrl+C
+  WaitForSingleObjectEx(hOutputThread, INFINITE, TRUE);
 
-	if (hErrorThread)
-		WaitForSingleObject(hErrorThread, INFINITE);
+  // swap Ctrl+C handlers
+  SetConsoleCtrlHandler(CtrlHandler, FALSE);
+  SetConsoleCtrlHandler(SilentCtrlHandler, TRUE);
 
-	CloseHandle(hOutputThread);
-	if (hErrorThread)
-		CloseHandle(hErrorThread);
+  if (hErrorThread)
+    WaitForSingleObject(hErrorThread, INFINITE);
 
-	CloseHandle(hOutputPipeRead);
-	if (hErrorPipeRead)
-		CloseHandle(hErrorPipeRead);
+  CloseHandle(hOutputThread);
+  if (hErrorThread)
+    CloseHandle(hErrorThread);
 
-	DeleteCriticalSection(&g_writeLock);
+  CloseHandle(hOutputPipeRead);
+  if (hErrorPipeRead)
+    CloseHandle(hErrorPipeRead);
 
-	// if we were launched from Explorer, wait for close
-	if (bRunFromExplorer) {
-		while(!g_bAbortCaught)
-			SleepEx(100, TRUE);
-	}
+  DeleteCriticalSection(&g_writeLock);
 
-	return (int)rc;
+  // if we were launched from Explorer, wait for close
+  if (bRunFromExplorer)
+  {
+    while (!g_bAbortCaught)
+      SleepEx(100, TRUE);
+  }
+
+  return (int)rc;
 }

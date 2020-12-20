@@ -24,36 +24,39 @@ class IVDFilterFrameAllocator;
 class VDFilterFrameAllocatorProxy;
 class VDFilterAccelEngine;
 
-class VDFilterFrameAllocatorManager {
-	VDFilterFrameAllocatorManager(const VDFilterFrameAllocatorManager&);
-	VDFilterFrameAllocatorManager& operator=(const VDFilterFrameAllocatorManager&);
+class VDFilterFrameAllocatorManager
+{
+  VDFilterFrameAllocatorManager(const VDFilterFrameAllocatorManager &);
+  VDFilterFrameAllocatorManager &operator=(const VDFilterFrameAllocatorManager &);
+
 public:
-	VDFilterFrameAllocatorManager();
-	~VDFilterFrameAllocatorManager();
+  VDFilterFrameAllocatorManager();
+  ~VDFilterFrameAllocatorManager();
 
-	void Shutdown();
+  void Shutdown();
 
-	void AddAllocatorProxy(VDFilterFrameAllocatorProxy *proxy);
-	void AssignAllocators(VDFilterAccelEngine *accelEngine);
+  void AddAllocatorProxy(VDFilterFrameAllocatorProxy *proxy);
+  void AssignAllocators(VDFilterAccelEngine *accelEngine);
 
 protected:
-	void AssignAllocators(VDFilterAccelEngine *accelEngine, int mode);
+  void AssignAllocators(VDFilterAccelEngine *accelEngine, int mode);
 
-	struct ProxyEntry {
-		VDFilterFrameAllocatorProxy *mpProxy;
-		IVDFilterFrameAllocator *mpAllocator;
-		uint32 mMinSize;
-		uint32 mMaxSize;
-		uint32 mBorderWidth;
-		uint32 mBorderHeight;
-		ProxyEntry *mpParent;
-	};
+  struct ProxyEntry
+  {
+    VDFilterFrameAllocatorProxy *mpProxy;
+    IVDFilterFrameAllocator *    mpAllocator;
+    uint32                       mMinSize;
+    uint32                       mMaxSize;
+    uint32                       mBorderWidth;
+    uint32                       mBorderHeight;
+    ProxyEntry *                 mpParent;
+  };
 
-	struct ProxyEntrySort;
+  struct ProxyEntrySort;
 
-	typedef vdfastvector<ProxyEntry> Proxies;
+  typedef vdfastvector<ProxyEntry> Proxies;
 
-	Proxies		mProxies[3];
+  Proxies mProxies[3];
 };
 
-#endif	// f_VD2_FILTERFRAMEALLOCATORMANAGER_H
+#endif // f_VD2_FILTERFRAMEALLOCATORMANAGER_H

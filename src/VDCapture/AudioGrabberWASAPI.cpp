@@ -24,398 +24,441 @@
 #include <vd2/Priss/convert.h>
 
 VDAudioGrabberWASAPI::VDAudioGrabberWASAPI()
-	: mCurrentState(kStateNone)
-	, mRequestedState(kStateNone)
-	, mpCB(NULL)
-	, mpMMDevice(NULL)
-	, mpAudioClientCapture(NULL)
-	, mpAudioClientRender(NULL)
-	, mpAudioCaptureClient(NULL)
-	, mpAudioRenderClient(NULL)
-	, mhEventRender(NULL)
+  : mCurrentState(kStateNone), mRequestedState(kStateNone), mpCB(NULL), mpMMDevice(NULL), mpAudioClientCapture(NULL),
+    mpAudioClientRender(NULL), mpAudioCaptureClient(NULL), mpAudioRenderClient(NULL), mhEventRender(NULL)
+{}
+
+VDAudioGrabberWASAPI::~VDAudioGrabberWASAPI() {}
+
+bool VDAudioGrabberWASAPI::GetFormat(vdstructex<WAVEFORMATEX> &format)
 {
+  bool local = !isThreadAttached();
+
+  if (local)
+  {
+    if (!InitEndpoint())
+    {
+      ShutdownEndpoint();
+      return false;
+    }
+  }
+
+  format.resize(sizeof(WAVEFORMATEX));
+  format->wFormatTag      = WAVE_FORMAT_PCM;
+  format->nChannels       = mChannels;
+  format->nSamplesPerSec  = mMixFormat->nSamplesPerSec;
+  format->nBlockAlign     = sizeof(sint16) * mChannels;
+  format->nAvgBytesPerSec = format->nBlockAlign * format->nSamplesPerSec;
+  format->wBitsPerSample  = 16;
+  format->cbSize          = 0;
+
+  if (local)
+    ShutdownEndpoint();
+
+  return true;
 }
 
-VDAudioGrabberWASAPI::~VDAudioGrabberWASAPI() {
+bool VDAudioGrabberWASAPI::Init(IVDAudioGrabberCallbackWASAPI *cb)
+{
+  mCurrentState   = kStateNone;
+  mRequestedState = kStateInited;
+  mpCB            = cb;
+
+  if (!ThreadStart())
+    return false;
+
+  for (;;)
+  {
+    State curState = (State)(int)mCurrentState;
+
+    if (curState == kStateInited)
+      break;
+
+    if (curState == kStateInitFailed)
+    {
+      ThreadWait();
+      return false;
+    }
+
+    mStateChangeCompleted.wait();
+  }
+
+  return true;
 }
 
-bool VDAudioGrabberWASAPI::GetFormat(vdstructex<WAVEFORMATEX>& format) {
-	bool local = !isThreadAttached();
+void VDAudioGrabberWASAPI::Shutdown()
+{
+  mRequestedState = kStateNone;
+  mStateChangeRequested.signal();
 
-	if (local) {
-		if (!InitEndpoint()) {
-			ShutdownEndpoint();
-			return false;
-		}
-	}
-
-	format.resize(sizeof(WAVEFORMATEX));
-	format->wFormatTag = WAVE_FORMAT_PCM;
-	format->nChannels = mChannels;
-	format->nSamplesPerSec = mMixFormat->nSamplesPerSec;
-	format->nBlockAlign = sizeof(sint16) * mChannels;
-	format->nAvgBytesPerSec = format->nBlockAlign * format->nSamplesPerSec;
-	format->wBitsPerSample = 16;
-	format->cbSize = 0;
-
-	if (local)
-		ShutdownEndpoint();
-
-	return true;
+  ThreadWait();
 }
 
-bool VDAudioGrabberWASAPI::Init(IVDAudioGrabberCallbackWASAPI *cb) {
-	mCurrentState = kStateNone;
-	mRequestedState = kStateInited;
-	mpCB = cb;
+bool VDAudioGrabberWASAPI::Start()
+{
+  while (mCurrentState == kStateStartFailed)
+  {
+    mRequestedState = kStateInited;
+    mStateChangeCompleted.wait();
+  }
 
-	if (!ThreadStart())
-		return false;
+  mRequestedState = kStateRunning;
+  mStateChangeRequested.signal();
 
-	for(;;) {
-		State curState = (State)(int)mCurrentState;
+  for (;;)
+  {
+    State curState = (State)(int)mCurrentState;
 
-		if (curState == kStateInited)
-			break;
+    if (curState == kStateStartFailed)
+      return false;
 
-		if (curState == kStateInitFailed) {
-			ThreadWait();
-			return false;
-		}
+    if (curState == kStateRunning)
+      return true;
 
-		mStateChangeCompleted.wait();
-	}
-
-	return true;
+    mStateChangeCompleted.wait();
+  }
 }
 
-void VDAudioGrabberWASAPI::Shutdown() {
-	mRequestedState = kStateNone;
-	mStateChangeRequested.signal();
+void VDAudioGrabberWASAPI::Stop()
+{
+  mRequestedState = kStateInited;
+  mStateChangeRequested.signal();
 
-	ThreadWait();
+  for (;;)
+  {
+    State curState = (State)(int)mCurrentState;
+
+    if (curState == kStateInited)
+      break;
+
+    mStateChangeCompleted.wait();
+  }
 }
 
-bool VDAudioGrabberWASAPI::Start() {
-	while(mCurrentState == kStateStartFailed) {
-		mRequestedState = kStateInited;
-		mStateChangeCompleted.wait();
-	}
-
-	mRequestedState = kStateRunning;
-	mStateChangeRequested.signal();
-
-	for(;;) {
-		State curState = (State)(int)mCurrentState;
-
-		if (curState == kStateStartFailed)
-			return false;
-
-		if (curState == kStateRunning)
-			return true;
-
-		mStateChangeCompleted.wait();
-	}
+uint32 VDAudioGrabberWASAPI::ReadData(void *dst, size_t bytes)
+{
+  return mTransferBuffer.Read((sint16 *)dst, bytes / sizeof(sint16)) * sizeof(sint16);
 }
 
-void VDAudioGrabberWASAPI::Stop() {
-	mRequestedState = kStateInited;
-	mStateChangeRequested.signal();
+void VDAudioGrabberWASAPI::ThreadRun()
+{
+  if (InitLocal())
+  {
+    mCurrentState = kStateInited;
+    mStateChangeCompleted.signal();
 
-	for(;;) {
-		State curState = (State)(int)mCurrentState;
+    RunLocal();
+  }
+  else
+  {
+    mCurrentState = kStateInitFailed;
+    mStateChangeCompleted.signal();
+  }
 
-		if (curState == kStateInited)
-			break;
+  ShutdownLocal();
 
-		mStateChangeCompleted.wait();
-	}
+  mCurrentState = kStateNone;
+  mStateChangeCompleted.signal();
 }
 
-uint32 VDAudioGrabberWASAPI::ReadData(void *dst, size_t bytes) {
-	return mTransferBuffer.Read((sint16 *)dst, bytes / sizeof(sint16)) * sizeof(sint16);
+bool VDAudioGrabberWASAPI::InitEndpoint()
+{
+  HRESULT hr;
+
+  // get the default audio endpoint for multimedia rendering
+  vdrefptr<IMMDeviceEnumerator> pDevEnum;
+  hr =
+    CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void **)~pDevEnum);
+
+  if (FAILED(hr))
+    return false;
+
+  hr = pDevEnum->GetDefaultAudioEndpoint(eRender, eMultimedia, &mpMMDevice);
+  pDevEnum.clear();
+
+  if (FAILED(hr))
+    return false;
+
+  // create two audio clients for the default endpoint
+  hr = mpMMDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void **)&mpAudioClientCapture);
+  if (FAILED(hr))
+  {
+    ShutdownEndpoint();
+    return false;
+  }
+
+  // retrieve the mixing format
+  WAVEFORMATEX *pwfex;
+  hr = mpAudioClientCapture->GetMixFormat(&pwfex);
+  if (FAILED(hr))
+  {
+    ShutdownEndpoint();
+    return false;
+  }
+
+  mMixFormat.assign(pwfex, sizeof(WAVEFORMATEX) + pwfex->cbSize);
+
+  mBytesPerFrame = mMixFormat->nBlockAlign;
+  mChannels      = mMixFormat->nChannels;
+
+  CoTaskMemFree(pwfex);
+
+  return true;
 }
 
-void VDAudioGrabberWASAPI::ThreadRun() {
-	if (InitLocal()) {
-		mCurrentState = kStateInited;
-		mStateChangeCompleted.signal();
-
-		RunLocal();
-	} else {
-		mCurrentState = kStateInitFailed;
-		mStateChangeCompleted.signal();
-	}
-
-	ShutdownLocal();
-
-	mCurrentState = kStateNone;
-	mStateChangeCompleted.signal();
+void VDAudioGrabberWASAPI::ShutdownEndpoint()
+{
+  vdsaferelease <<= mpAudioCaptureClient;
+  vdsaferelease <<= mpMMDevice;
 }
 
-bool VDAudioGrabberWASAPI::InitEndpoint() {
-	HRESULT hr;
+bool VDAudioGrabberWASAPI::InitLocal()
+{
+  HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+  if (FAILED(hr))
+    return false;
 
-	// get the default audio endpoint for multimedia rendering
-	vdrefptr<IMMDeviceEnumerator> pDevEnum;
-	hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void **)~pDevEnum);
+  if (!InitEndpoint())
+    return false;
 
-	if (FAILED(hr))
-		return false;
+  mhEventRender = CreateEvent(NULL, FALSE, FALSE, NULL);
+  if (!mhEventRender)
+  {
+    Shutdown();
+    return false;
+  }
 
-	hr = pDevEnum->GetDefaultAudioEndpoint(eRender, eMultimedia, &mpMMDevice);
-	pDevEnum.clear();
+  hr = mpMMDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void **)&mpAudioClientRender);
+  if (FAILED(hr))
+  {
+    Shutdown();
+    return false;
+  }
 
-	if (FAILED(hr))
-		return false;
+  // init the render pipeline for silence
+  WAVEFORMATEX silenceFormat    = {};
+  silenceFormat.wFormatTag      = WAVE_FORMAT_PCM;
+  silenceFormat.nChannels       = mMixFormat->nChannels;
+  silenceFormat.nSamplesPerSec  = mMixFormat->nSamplesPerSec;
+  silenceFormat.nAvgBytesPerSec = silenceFormat.nSamplesPerSec * silenceFormat.nChannels;
+  silenceFormat.nBlockAlign     = silenceFormat.nChannels;
+  silenceFormat.wBitsPerSample  = 8;
+  silenceFormat.cbSize          = 0;
 
-	// create two audio clients for the default endpoint
-	hr = mpMMDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void **)&mpAudioClientCapture);
-	if (FAILED(hr)) {
-		ShutdownEndpoint();
-		return false;
-	}
+  const REFERENCE_TIME halfSecond = 5000000;
 
-	// retrieve the mixing format
-	WAVEFORMATEX *pwfex;
-	hr = mpAudioClientCapture->GetMixFormat(&pwfex);
-	if (FAILED(hr)) {
-		ShutdownEndpoint();
-		return false;
-	}
+  hr = mpAudioClientRender->Initialize(
+    AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK, halfSecond, 0, &silenceFormat, NULL);
+  if (FAILED(hr))
+  {
+    Shutdown();
+    return false;
+  }
 
-	mMixFormat.assign(pwfex, sizeof(WAVEFORMATEX) + pwfex->cbSize);
+  hr = mpAudioClientCapture->Initialize(
+    AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, halfSecond, 0, &*mMixFormat, NULL);
+  if (FAILED(hr))
+  {
+    Shutdown();
+    return false;
+  }
 
-	mBytesPerFrame = mMixFormat->nBlockAlign;
-	mChannels = mMixFormat->nChannels;
+  UINT32 outputBufferFrames;
+  hr = mpAudioClientRender->GetBufferSize(&outputBufferFrames);
+  if (FAILED(hr))
+  {
+    Shutdown();
+    return false;
+  }
 
-	CoTaskMemFree(pwfex);
+  mOutputBufferFrames = outputBufferFrames;
 
-	return true;
+  hr = mpAudioClientRender->GetService(__uuidof(IAudioRenderClient), (void **)&mpAudioRenderClient);
+  if (FAILED(hr))
+  {
+    Shutdown();
+    return false;
+  }
+
+  hr = mpAudioClientCapture->GetService(__uuidof(IAudioCaptureClient), (void **)&mpAudioCaptureClient);
+  if (FAILED(hr))
+  {
+    Shutdown();
+    return false;
+  }
+
+  hr = mpAudioClientRender->SetEventHandle(mhEventRender);
+  if (FAILED(hr))
+  {
+    Shutdown();
+    return false;
+  }
+
+  mTransferBuffer.Init(mMixFormat->nAvgBytesPerSec);
+
+  return true;
 }
 
-void VDAudioGrabberWASAPI::ShutdownEndpoint() {
-	vdsaferelease <<= mpAudioCaptureClient;
-	vdsaferelease <<= mpMMDevice;
+void VDAudioGrabberWASAPI::RunLocal()
+{
+  HRESULT hr;
+
+  HANDLE h[2] = {mhEventRender, mStateChangeRequested.getHandle()};
+
+  for (;;)
+  {
+    const DWORD waitResult = WaitForMultipleObjects(2, h, FALSE, mCurrentState == kStateRunning ? 100 : INFINITE);
+
+    if (waitResult == WAIT_OBJECT_0)
+    {
+      for (;;)
+      {
+        UINT32 paddingFrames;
+        hr = mpAudioClientRender->GetCurrentPadding(&paddingFrames);
+        if (FAILED(hr))
+          break;
+
+        UINT32 avail = mOutputBufferFrames - paddingFrames;
+        if (!avail)
+          break;
+
+        BYTE *pData;
+        hr = mpAudioRenderClient->GetBuffer(avail, &pData);
+        if (SUCCEEDED(hr))
+          mpAudioRenderClient->ReleaseBuffer(avail, AUDCLNT_BUFFERFLAGS_SILENT);
+      }
+    }
+    else if (waitResult == WAIT_OBJECT_0 + 1)
+    {
+      while (mCurrentState != mRequestedState)
+      {
+        switch (mCurrentState)
+        {
+          case kStateInited:
+          case kStateStartFailed:
+            if (mRequestedState == kStateNone)
+            {
+              mCurrentState = kStateNone;
+              mStateChangeCompleted.signal();
+              goto xit;
+            }
+
+            if (mRequestedState == kStateRunning)
+            {
+              // start streams
+              hr = mpAudioClientCapture->Start();
+              if (SUCCEEDED(hr))
+                hr = mpAudioClientRender->Start();
+
+              if (SUCCEEDED(hr))
+                mCurrentState = kStateRunning;
+              else
+                mCurrentState = kStateStartFailed;
+
+              mStateChangeCompleted.signal();
+            }
+
+            if (mRequestedState == kStateInited)
+            {
+              mCurrentState = kStateInited;
+              mStateChangeCompleted.signal();
+            }
+
+            break;
+
+          case kStateRunning:
+            if (mRequestedState != kStateRunning)
+            {
+              mpAudioClientRender->Stop();
+              mpAudioClientCapture->Stop();
+
+              mCurrentState = kStateInited;
+              mStateChangeCompleted.signal();
+            }
+            break;
+        }
+      }
+    }
+
+    if (mCurrentState == kStateRunning)
+    {
+      for (;;)
+      {
+        UINT32 frames;
+        hr = mpAudioCaptureClient->GetNextPacketSize(&frames);
+
+        if (FAILED(hr))
+          break;
+
+        if (!frames)
+          break;
+
+        BYTE * pData;
+        UINT32 framesToRead;
+        DWORD  flags;
+        UINT64 devpos;
+        UINT64 qpc;
+        hr = mpAudioCaptureClient->GetBuffer(&pData, &framesToRead, &flags, &devpos, &qpc);
+        if (SUCCEEDED(hr))
+        {
+          const tpVDConvertPCM convert = VDGetPCMConversionVtable()[kVDAudioSampleType32F][kVDAudioSampleType16S];
+          uint32               samples = framesToRead * mChannels;
+
+          const float *src = (const float *)pData;
+          while (samples)
+          {
+            int tc;
+
+            void *dst = mTransferBuffer.LockWrite(samples, tc);
+            if (!tc)
+              break;
+
+            convert(dst, src, tc);
+
+            mTransferBuffer.UnlockWrite(tc);
+
+            samples -= tc;
+            src += tc;
+          }
+
+          mpCB->ReceiveAudioDataWASAPI();
+
+          mpAudioCaptureClient->ReleaseBuffer(framesToRead);
+        }
+      }
+    }
+  }
+
+xit:;
 }
 
-bool VDAudioGrabberWASAPI::InitLocal() {
-	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-	if (FAILED(hr))
-		return false;
+void VDAudioGrabberWASAPI::ShutdownLocal()
+{
+  vdsaferelease <<= mpAudioRenderClient;
 
-	if (!InitEndpoint())
-		return false;
+  if (mpAudioClientRender)
+  {
+    mpAudioClientRender->Stop();
+    mpAudioClientRender->Reset();
+    mpAudioClientRender->Release();
+    mpAudioClientRender = NULL;
+  }
 
-	mhEventRender = CreateEvent(NULL, FALSE, FALSE, NULL);
-	if (!mhEventRender) {
-		Shutdown();
-		return false;
-	}
+  if (mpAudioClientCapture)
+  {
+    mpAudioClientCapture->Stop();
+    mpAudioClientCapture->Reset();
+    mpAudioClientCapture->Release();
+    mpAudioClientCapture = NULL;
+  }
 
-	hr = mpMMDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void **)&mpAudioClientRender);
-	if (FAILED(hr)) {
-		Shutdown();
-		return false;
-	}
+  if (mhEventRender)
+  {
+    CloseHandle(mhEventRender);
+    mhEventRender = NULL;
+  }
 
-	// init the render pipeline for silence
-	WAVEFORMATEX silenceFormat = {};
-	silenceFormat.wFormatTag = WAVE_FORMAT_PCM;
-	silenceFormat.nChannels = mMixFormat->nChannels;
-	silenceFormat.nSamplesPerSec = mMixFormat->nSamplesPerSec;
-	silenceFormat.nAvgBytesPerSec = silenceFormat.nSamplesPerSec * silenceFormat.nChannels;
-	silenceFormat.nBlockAlign = silenceFormat.nChannels;
-	silenceFormat.wBitsPerSample = 8;
-	silenceFormat.cbSize = 0;
+  ShutdownEndpoint();
 
-	const REFERENCE_TIME halfSecond = 5000000;
-
-	hr = mpAudioClientRender->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK, halfSecond, 0, &silenceFormat, NULL);
-	if (FAILED(hr)) {
-		Shutdown();
-		return false;
-	}
-
-	hr = mpAudioClientCapture->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, halfSecond, 0, &*mMixFormat, NULL);
-	if (FAILED(hr)) {
-		Shutdown();
-		return false;
-	}
-
-	UINT32 outputBufferFrames;
-	hr = mpAudioClientRender->GetBufferSize(&outputBufferFrames);
-	if (FAILED(hr)) {
-		Shutdown();
-		return false;
-	}
-
-	mOutputBufferFrames = outputBufferFrames;
-
-	hr = mpAudioClientRender->GetService(__uuidof(IAudioRenderClient), (void **)&mpAudioRenderClient);
-	if (FAILED(hr)) {
-		Shutdown();
-		return false;
-	}
-
-	hr = mpAudioClientCapture->GetService(__uuidof(IAudioCaptureClient), (void **)&mpAudioCaptureClient);
-	if (FAILED(hr)) {
-		Shutdown();
-		return false;
-	}
-
-	hr = mpAudioClientRender->SetEventHandle(mhEventRender);
-	if (FAILED(hr)) {
-		Shutdown();
-		return false;
-	}
-
-	mTransferBuffer.Init(mMixFormat->nAvgBytesPerSec);
-
-	return true;
-}
-
-void VDAudioGrabberWASAPI::RunLocal() {
-	HRESULT hr;
-
-	HANDLE h[2] = { mhEventRender, mStateChangeRequested.getHandle() };
-
-	for(;;) {
-		const DWORD waitResult = WaitForMultipleObjects(2, h, FALSE, mCurrentState == kStateRunning ? 100 : INFINITE);
-
-		if (waitResult == WAIT_OBJECT_0) {
-			for(;;) {
-				UINT32 paddingFrames;
-				hr = mpAudioClientRender->GetCurrentPadding(&paddingFrames);
-				if (FAILED(hr))
-					break;
-
-				UINT32 avail = mOutputBufferFrames - paddingFrames;
-				if (!avail)
-					break;
-
-				BYTE *pData;
-				hr = mpAudioRenderClient->GetBuffer(avail, &pData);
-				if (SUCCEEDED(hr))
-					mpAudioRenderClient->ReleaseBuffer(avail, AUDCLNT_BUFFERFLAGS_SILENT);
-			}
-		} else if (waitResult == WAIT_OBJECT_0 + 1) {
-			while(mCurrentState != mRequestedState) {
-				switch(mCurrentState) {
-					case kStateInited:
-					case kStateStartFailed:
-						if (mRequestedState == kStateNone) {
-							mCurrentState = kStateNone;
-							mStateChangeCompleted.signal();
-							goto xit;
-						}
-
-						if (mRequestedState == kStateRunning) {
-							// start streams
-							hr = mpAudioClientCapture->Start();
-							if (SUCCEEDED(hr))
-								hr = mpAudioClientRender->Start();
-
-							if (SUCCEEDED(hr))
-								mCurrentState = kStateRunning;
-							else
-								mCurrentState = kStateStartFailed;
-
-							mStateChangeCompleted.signal();
-						}
-
-						if (mRequestedState == kStateInited) {
-							mCurrentState = kStateInited;
-							mStateChangeCompleted.signal();
-						}
-
-						break;
-
-					case kStateRunning:
-						if (mRequestedState != kStateRunning) {
-							mpAudioClientRender->Stop();
-							mpAudioClientCapture->Stop();
-
-							mCurrentState = kStateInited;
-							mStateChangeCompleted.signal();
-						}
-						break;
-				}
-			}
-		}
-
-		if (mCurrentState == kStateRunning) {
-			for(;;) {
-				UINT32 frames;
-				hr = mpAudioCaptureClient->GetNextPacketSize(&frames);
-
-				if (FAILED(hr))
-					break;
-
-				if (!frames)
-					break;
-
-				BYTE *pData;
-				UINT32 framesToRead;
-				DWORD flags;
-				UINT64 devpos;
-				UINT64 qpc;
-				hr = mpAudioCaptureClient->GetBuffer(&pData, &framesToRead, &flags, &devpos, &qpc);
-				if (SUCCEEDED(hr)) {
-					const tpVDConvertPCM convert = VDGetPCMConversionVtable()[kVDAudioSampleType32F][kVDAudioSampleType16S];
-					uint32 samples = framesToRead * mChannels;
-
-					const float *src = (const float *)pData;
-					while(samples) {
-						int tc;
-
-						void *dst = mTransferBuffer.LockWrite(samples, tc);
-						if (!tc)
-							break;
-
-						convert(dst, src, tc);
-
-						mTransferBuffer.UnlockWrite(tc);
-
-						samples -= tc;
-						src += tc;
-					}
-
-					mpCB->ReceiveAudioDataWASAPI();
-
-					mpAudioCaptureClient->ReleaseBuffer(framesToRead);
-				}
-			}
-		}
-	}
-
-xit:
-	;
-}
-
-void VDAudioGrabberWASAPI::ShutdownLocal() {
-	vdsaferelease <<= mpAudioRenderClient;
-
-	if (mpAudioClientRender) {
-		mpAudioClientRender->Stop();
-		mpAudioClientRender->Reset();
-		mpAudioClientRender->Release();
-		mpAudioClientRender = NULL;
-	}
-
-	if (mpAudioClientCapture) {
-		mpAudioClientCapture->Stop();
-		mpAudioClientCapture->Reset();
-		mpAudioClientCapture->Release();
-		mpAudioClientCapture = NULL;
-	}
-
-	if (mhEventRender) {
-		CloseHandle(mhEventRender);
-		mhEventRender = NULL;
-	}
-
-	ShutdownEndpoint();
-
-	CoUninitialize();
+  CoUninitialize();
 }

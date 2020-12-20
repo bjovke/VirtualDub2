@@ -25,148 +25,161 @@
 #include "MRUList.h"
 
 MRUList::MRUList(int max_files, char *key_name)
-	: mKey(max_files, 0)
-	, mFiles(max_files)
-	, mMaxCount(max_files)
-	, mpKeyName(key_name)
-	, mbDirty(false)
+  : mKey(max_files, 0), mFiles(max_files), mMaxCount(max_files), mpKeyName(key_name), mbDirty(false)
+{}
+
+MRUList::~MRUList()
 {
+  flush();
 }
 
-MRUList::~MRUList() {
-	flush();
+void MRUList::set_capacity(int max_files)
+{
+  mMaxCount = max_files;
+  mFiles.resize(max_files);
+  mKey.resize(max_files, 0);
 }
 
-void MRUList::set_capacity(int max_files) {
-	mMaxCount = max_files;
-	mFiles.resize(max_files);
-	mKey.resize(max_files, 0);
+void MRUList::add(const wchar_t *file)
+{
+  if (!mMaxCount)
+    return;
+
+  int index;
+
+  // Does this file already exist?  If not, move it to the top.
+
+  for (index = 0; index < mMaxCount; index++)
+  {
+    int i = mKey[index];
+
+    if (!i)
+      continue;
+
+    i -= 'a';
+
+    if (!_wcsicmp(mFiles[i].c_str(), file))
+    {
+      move_to_top(index);
+      return;
+    }
+  }
+
+  // Add file to list
+  std::rotate(mKey.begin(), mKey.end() - 1, mKey.end());
+
+  if (mKey.front())
+  {
+    index = mKey.front() - 'a';
+  }
+  else
+  {
+    index = 0;
+    while (!mFiles[index].empty())
+      ++index;
+  }
+
+  mFiles[index] = file;
+  mKey.front()  = (char)(index + 'a');
+
+  mbDirty = true;
 }
 
-void MRUList::add(const wchar_t *file) {
-	if (!mMaxCount)
-		return;
+VDStringW MRUList::operator[](int i)
+{
+  VDStringW s;
+  if ((unsigned)i < mMaxCount && mKey[i])
+  {
+    i = mKey[i] - 'a';
 
-	int index;
-
-	// Does this file already exist?  If not, move it to the top.
-
-	for(index=0; index<mMaxCount; index++) {
-		int i = mKey[index];
-
-		if (!i)
-			continue;
-
-		i -= 'a';
-
-		if (!_wcsicmp(mFiles[i].c_str(), file)) {
-			move_to_top(index);
-			return;
-		}
-	}
-
-	// Add file to list
-	std::rotate(mKey.begin(), mKey.end()-1, mKey.end());
-
-	if (mKey.front()) {
-		index = mKey.front() - 'a';
-	} else {
-		index=0;
-		while(!mFiles[index].empty())
-			++index;
-	}
-
-	mFiles[index] = file;
-	mKey.front() = (char)(index + 'a');
-
-	mbDirty = true;
+    s = mFiles[i];
+  }
+  return s;
 }
 
-VDStringW MRUList::operator[](int i) {
-	VDStringW s;
-	if ((unsigned)i < mMaxCount && mKey[i]) {
-		i = mKey[i] - 'a';
+void MRUList::move_to_top(int index)
+{
+  if (index >= mMaxCount)
+    return;
 
-		s = mFiles[i];
-	}
-	return s;
+  // Move file to top of list
+  if (index)
+    std::rotate(mKey.begin(), mKey.begin() + index, mKey.begin() + index + 1);
 }
 
-void MRUList::move_to_top(int index) {
-	if (index >= mMaxCount)
-		return;
+void MRUList::clear()
+{
+  mKey.clear();
+  mKey.resize(mMaxCount, 0);
+  mFiles.clear();
+  mFiles.resize(mMaxCount);
 
-	// Move file to top of list
-	if (index)
-		std::rotate(mKey.begin(), mKey.begin()+index, mKey.begin()+index+1);
+  mbDirty = true;
 }
 
-void MRUList::clear() {
-	mKey.clear();
-	mKey.resize(mMaxCount, 0);
-	mFiles.clear();
-	mFiles.resize(mMaxCount);
+void MRUList::clear_history()
+{
+  VDRegistryAppKey key(mpKeyName);
 
-	mbDirty = true;
+  VDRegistryKeyIterator it(key);
+
+  while (const char *name = it.Next())
+  {
+    key.removeValue(name);
+  }
+
+  clear();
 }
 
-void MRUList::clear_history() {
-	VDRegistryAppKey key(mpKeyName);
+void MRUList::load()
+{
+  clear();
 
-	VDRegistryKeyIterator it(key);
+  VDRegistryAppKey key(mpKeyName);
+  if (!key.isReady())
+    return;
 
-	while(const char *name = it.Next()) {
-		key.removeValue(name);
-	}
+  VDStringA s;
+  if (!key.getString("MRUList", s))
+    return;
 
-	clear();
+  int nItems = std::min<int>(mMaxCount, s.length());
+
+  mKey.resize(mMaxCount, 0);
+
+  for (int i = 0; i < nItems; i++)
+  {
+    char name[2] = {s[i], 0};
+
+    if (!name[0])
+      break;
+
+    if (!key.getString(name, mFiles[i]))
+      break;
+
+    mKey[i] = (char)('a' + i);
+  }
+
+  mbDirty = false;
 }
 
-void MRUList::load() {
-	clear();
+void MRUList::flush()
+{
+  if (!mbDirty)
+    return;
 
-	VDRegistryAppKey key(mpKeyName);
-	if (!key.isReady())
-		return;
+  VDRegistryAppKey key(mpKeyName);
 
-	VDStringA s;
-	if (!key.getString("MRUList", s))
-		return;
+  mKey.resize(mMaxCount + 1, 0);
+  key.setString("MRUList", &mKey[0]);
+  mKey.resize(mMaxCount);
 
-	int nItems = std::min<int>(mMaxCount, s.length());
+  for (int i = 0; i < mMaxCount && mKey[i]; i++)
+  {
+    char name[2] = {mKey[i], 0};
 
-	mKey.resize(mMaxCount, 0);
+    key.setString(name, mFiles[name[0] - 'a'].c_str());
+  }
 
-	for(int i=0; i<nItems; i++) {
-		char name[2]={s[i], 0};
-
-		if (!name[0])
-			break;
-
-		if (!key.getString(name, mFiles[i]))
-			break;
-
-		mKey[i] = (char)('a'+i);
-	}
-
-	mbDirty = false;
-}
-
-void MRUList::flush() {
-	if (!mbDirty)
-		return;
-
-	VDRegistryAppKey key(mpKeyName);
-
-	mKey.resize(mMaxCount+1, 0);
-	key.setString("MRUList", &mKey[0]);
-	mKey.resize(mMaxCount);
-
-	for(int i=0; i<mMaxCount && mKey[i]; i++) {
-		char name[2] = {mKey[i], 0};
-
-		key.setString(name, mFiles[name[0] - 'a'].c_str());
-	}
-
-	mbDirty = false;
+  mbDirty = false;
 }

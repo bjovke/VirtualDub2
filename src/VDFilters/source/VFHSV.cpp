@@ -26,27 +26,28 @@ extern HINSTANCE g_hInst;
 
 ///////////////////////////////////
 
-struct HSVFilterData {
-	int hue;
-	int sat;
-	int val;
-	int	_pad;
+struct HSVFilterData
+{
+  int hue;
+  int sat;
+  int val;
+  int _pad;
 
-	int divtab[256];
-	int	graytab[256];
-	int valtab[512][2];
-	int sattab[256];
+  int divtab[256];
+  int graytab[256];
+  int valtab[512][2];
+  int sattab[256];
 
-	IVDXFilterPreview *ifp;
+  IVDXFilterPreview *ifp;
 
-	// Don't make these functions virtual.  Bad things happen.
-	void RunScalar(uint32 *dst, ptrdiff_t dstpitch, unsigned w, unsigned h, int subshift, int sectors);
-	void RebuildSVTables();
+  // Don't make these functions virtual.  Bad things happen.
+  void RunScalar(uint32 *dst, ptrdiff_t dstpitch, unsigned w, unsigned h, int subshift, int sectors);
+  void RebuildSVTables();
 };
 
-template<class T>
-void ptr_increment(T *&ptr, ptrdiff_t delta) {
-	ptr = (T *)((char *)ptr + delta);
+template<class T> void ptr_increment(T *&ptr, ptrdiff_t delta)
+{
+  ptr = (T *)((char *)ptr + delta);
 }
 
 // XXX: These assembly routines are pretty awful -- the algorithm turns out to be slower
@@ -354,42 +355,52 @@ xloop_negative_shift:
 	}
 }
 #elif 0
-static void __declspec(naked) __stdcall hsv_run_ISSE(uint32 *dst, ptrdiff_t dstpitch, unsigned w, unsigned h, int subshift, int sectors, int sat, int val, const unsigned short (*divtab)[4]) {
-	static const __int64 x0000FFFFFFFFFFFF = 0x0000FFFFFFFFFFFF;
-	static const __int64 rangefloor = 0;
-	static const __int64 rangeceil = 0x000000FF00FF00FF;
-	static const __int64 x0001w = 0x0001000100010001;
-	static const __int64 x00ffw = 0x00ff00ff00ff00ff;
-	static const __int64 x0100w = 0x0100010001000100;
-	static const __int64 x0101w = 0x0101010101010101;
-	static const __int64 x01ffw = 0x01ff01ff01ff01ff;
-	static const __int64 x05faw = 0x00000000000005fa;
-	static const __int64 x00000101d = 0x0000010100000101;
+static void __declspec(naked) __stdcall hsv_run_ISSE(
+  uint32 *  dst,
+  ptrdiff_t dstpitch,
+  unsigned  w,
+  unsigned  h,
+  int       subshift,
+  int       sectors,
+  int       sat,
+  int       val,
+  const unsigned short (*divtab)[4])
+{
+  static const __int64 x0000FFFFFFFFFFFF = 0x0000FFFFFFFFFFFF;
+  static const __int64 rangefloor        = 0;
+  static const __int64 rangeceil         = 0x000000FF00FF00FF;
+  static const __int64 x0001w            = 0x0001000100010001;
+  static const __int64 x00ffw            = 0x00ff00ff00ff00ff;
+  static const __int64 x0100w            = 0x0100010001000100;
+  static const __int64 x0101w            = 0x0101010101010101;
+  static const __int64 x01ffw            = 0x01ff01ff01ff01ff;
+  static const __int64 x05faw            = 0x00000000000005fa;
+  static const __int64 x00000101d        = 0x0000010100000101;
 
-	static const __int64 x = 0x000001FE00FF0000;		// ramps up
-	static const __int64 y = 0x000005FA04FB03FC;		// ramps down
-	static const __int64 z = 0x0000000000FF00FF;
+  static const __int64 x = 0x000001FE00FF0000; // ramps up
+  static const __int64 y = 0x000005FA04FB03FC; // ramps down
+  static const __int64 z = 0x0000000000FF00FF;
 
-	static const __int64 huetab[]={
-		0x00000000,		// impossible
-		0x0000FF00,		// B
-		0x00FF0000,		// G
-		0x00000000,		// GB
-		0x000000FF,		// R
-		0x00000000,		// RB
-		0x00000000,		// RG
-		0x00000000,		// impossible
-		0,			// impossible
-		765,			// B
-		255,			// G
-		510,			// GB = 765 
-		-255,			// R
-		1020,			// RB = 1275
-		0,			// RG = 255
-		0,			// impossible
-	};
+  static const __int64 huetab[] = {
+    0x00000000, // impossible
+    0x0000FF00, // B
+    0x00FF0000, // G
+    0x00000000, // GB
+    0x000000FF, // R
+    0x00000000, // RB
+    0x00000000, // RG
+    0x00000000, // impossible
+    0,          // impossible
+    765,        // B
+    255,        // G
+    510,        // GB = 765
+    -255,       // R
+    1020,       // RB = 1275
+    0,          // RG = 255
+    0,          // impossible
+  };
 
-	__asm {
+  __asm {
 		push		ebp
 		push		edi
 		push		esi
@@ -555,7 +566,7 @@ xloop:
 		pop			ebp
 		emms
 		ret			36
-	}
+  }
 }
 #endif
 
@@ -926,43 +937,53 @@ xloop_negative_shift:
 	}
 }
 #elif 0
-static void __declspec(naked) __stdcall hsv_run_MMX(uint32 *dst, ptrdiff_t dstpitch, unsigned w, unsigned h, int subshift, int sectors, int sat, int val, const unsigned short (*divtab)[4]) {
-	static const __int64 x0000FFFFFFFFFFFF = 0x0000FFFFFFFFFFFF;
-	static const __int64 rangefloor = 0;
-	static const __int64 rangeceil = 0x000000FF00FF00FF;
-	static const __int64 x0001w = 0x0001000100010001;
-	static const __int64 x00ffw = 0x00ff00ff00ff00ff;
-	static const __int64 x0100w = 0x0100010001000100;
-	static const __int64 x0101w = 0x0101010101010101;
-	static const __int64 x01ffw = 0x01ff01ff01ff01ff;
-	static const __int64 x05faw = 0x00000000000005fa;
-	static const __int64 x00000101d = 0x0000010100000101;
+static void __declspec(naked) __stdcall hsv_run_MMX(
+  uint32 *  dst,
+  ptrdiff_t dstpitch,
+  unsigned  w,
+  unsigned  h,
+  int       subshift,
+  int       sectors,
+  int       sat,
+  int       val,
+  const unsigned short (*divtab)[4])
+{
+  static const __int64 x0000FFFFFFFFFFFF = 0x0000FFFFFFFFFFFF;
+  static const __int64 rangefloor        = 0;
+  static const __int64 rangeceil         = 0x000000FF00FF00FF;
+  static const __int64 x0001w            = 0x0001000100010001;
+  static const __int64 x00ffw            = 0x00ff00ff00ff00ff;
+  static const __int64 x0100w            = 0x0100010001000100;
+  static const __int64 x0101w            = 0x0101010101010101;
+  static const __int64 x01ffw            = 0x01ff01ff01ff01ff;
+  static const __int64 x05faw            = 0x00000000000005fa;
+  static const __int64 x00000101d        = 0x0000010100000101;
 
-	static const __int64 x = 0x000001FE00FF0000;		// ramps up
-	static const __int64 y = 0x000005FA04FB03FC;		// ramps down
-	static const __int64 z = 0x0000000000FF00FF;
-	static const __int64 hdiff_correct = 0x000000ff02fd04fb;
+  static const __int64 x             = 0x000001FE00FF0000; // ramps up
+  static const __int64 y             = 0x000005FA04FB03FC; // ramps down
+  static const __int64 z             = 0x0000000000FF00FF;
+  static const __int64 hdiff_correct = 0x000000ff02fd04fb;
 
-	static const __int64 huetab[]={
-		0x00000000,		// impossible
-		0x0000FF00,		// B
-		0x00FF0000,		// G
-		0x00000000,		// GB
-		0x000000FF,		// R
-		0x00000000,		// RB
-		0x00000000,		// RG
-		0x00000000,		// impossible
-		0,			// impossible
-		765,			// B
-		255,			// G
-		510,			// GB = 765 
-		-255,			// R
-		1020,			// RB = 1275
-		0,			// RG = 255
-		0,			// impossible
-	};
+  static const __int64 huetab[] = {
+    0x00000000, // impossible
+    0x0000FF00, // B
+    0x00FF0000, // G
+    0x00000000, // GB
+    0x000000FF, // R
+    0x00000000, // RB
+    0x00000000, // RG
+    0x00000000, // impossible
+    0,          // impossible
+    765,        // B
+    255,        // G
+    510,        // GB = 765
+    -255,       // R
+    1020,       // RB = 1275
+    0,          // RG = 255
+    0,          // impossible
+  };
 
-	__asm {
+  __asm {
 		push		ebp
 		push		edi
 		push		esi
@@ -1183,7 +1204,7 @@ xloop:
 		pop			ebp
 		emms
 		ret			36
-	}
+  }
 }
 #endif
 
@@ -1264,106 +1285,113 @@ static void hsv_run_scalar(uint32 *dst, ptrdiff_t dstpitch, unsigned w, unsigned
 //
 ///////////////////////////////////////////////////////////////////////////
 
-void HSVFilterData::RunScalar(uint32 *dst, ptrdiff_t dstpitch, uint32 w, uint32 h, int subshift, int sectors) {
-	int totalshift = sectors * 510 + subshift;
+void HSVFilterData::RunScalar(uint32 *dst, ptrdiff_t dstpitch, uint32 w, uint32 h, int subshift, int sectors)
+{
+  int totalshift = sectors * 510 + subshift;
 
-	if (totalshift < 0)
-		totalshift += 1530;
+  if (totalshift < 0)
+    totalshift += 1530;
 
-	if (totalshift >= 1530)
-		totalshift -= 1530;
+  if (totalshift >= 1530)
+    totalshift -= 1530;
 
-	int hexshifts = totalshift / 255;
-	int subshifts = totalshift % 255;
+  int hexshifts = totalshift / 255;
+  int subshifts = totalshift % 255;
 
-	for(uint32 y=0; y<h; ++y) {
-		for(uint32 x=0; x<w; ++x) {
-			uint32 px;// = dst[x];
-			int r = ((unsigned char *)&dst[x])[2];
-			int g = ((unsigned char *)&dst[x])[1];
-			int b = ((unsigned char *)&dst[x])[0];
+  for (uint32 y = 0; y < h; ++y)
+  {
+    for (uint32 x = 0; x < w; ++x)
+    {
+      uint32 px; // = dst[x];
+      int    r = ((unsigned char *)&dst[x])[2];
+      int    g = ((unsigned char *)&dst[x])[1];
+      int    b = ((unsigned char *)&dst[x])[0];
 
-			int top			= r;
-			int bottom		= g;
-			int huesector	= 1;
-			int huedelta	= g-b;
+      int top       = r;
+      int bottom    = g;
+      int huesector = 1;
+      int huedelta  = g - b;
 
-			if (top < bottom) {
-				top = g;
-				bottom = r;
-				huesector = 3;
-				huedelta = b-r;
-			}
+      if (top < bottom)
+      {
+        top       = g;
+        bottom    = r;
+        huesector = 3;
+        huedelta  = b - r;
+      }
 
-			if (b > top) {
-				top = b;
-				huesector = 5;
-				huedelta = r-g;
-			}
+      if (b > top)
+      {
+        top       = b;
+        huesector = 5;
+        huedelta  = r - g;
+      }
 
-			if (b < bottom)
-				bottom = b;
+      if (b < bottom)
+        bottom = b;
 
-			int range		= top - bottom;
-			int rangecen2x	= top + bottom;
+      int range      = top - bottom;
+      int rangecen2x = top + bottom;
 
-			int huedeltaneg = huedelta>>31;
-			huesector += huedeltaneg;
-			huedelta += range & huedeltaneg;
+      int huedeltaneg = huedelta >> 31;
+      huesector += huedeltaneg;
+      huedelta += range & huedeltaneg;
 
-			int newrangemax2x	= valtab[rangecen2x][1];
-			rangecen2x = valtab[rangecen2x][0];
+      int newrangemax2x = valtab[rangecen2x][1];
+      rangecen2x        = valtab[rangecen2x][0];
 
-			int newrange2x		= sattab[range];
-			
-			if (newrange2x > newrangemax2x)
-				newrange2x = newrangemax2x;
+      int newrange2x = sattab[range];
 
-			int newbottom	= (rangecen2x - newrange2x)>>1;
-			int newtop		= (rangecen2x + newrange2x)>>1;
-			int newrange	= newtop - newbottom;
+      if (newrange2x > newrangemax2x)
+        newrange2x = newrangemax2x;
 
-			px = graytab[newbottom];
-			if (range) {
-				huedelta = (huedelta * divtab[range] + 0x8000) >> 16;
-				huesector += hexshifts;
-				huedelta += subshifts;
-				if (huedelta >= 255) {
-					huedelta -= 255;
-					++huesector;
-				}
+      int newbottom = (rangecen2x - newrange2x) >> 1;
+      int newtop    = (rangecen2x + newrange2x) >> 1;
+      int newrange  = newtop - newbottom;
 
-				unsigned subval = (huedelta * newrange + 128) >> 8;
+      px = graytab[newbottom];
+      if (range)
+      {
+        huedelta = (huedelta * divtab[range] + 0x8000) >> 16;
+        huesector += hexshifts;
+        huedelta += subshifts;
+        if (huedelta >= 255)
+        {
+          huedelta -= 255;
+          ++huesector;
+        }
 
-				static const unsigned tab[18][2]={
-					{0xff00ff,-0x000001},
-					{0xff0000,+0x000100},
-					{0xffff00,-0x010000},
-					{0x00ff00,+0x000001},
-					{0x00ffff,-0x000100},
-					{0x0000ff,+0x010000},
-					{0xff00ff,-0x000001},
-					{0xff0000,+0x000100},
-					{0xffff00,-0x010000},
-					{0x00ff00,+0x000001},
-					{0x00ffff,-0x000100},
-					{0x0000ff,+0x010000},
-					{0xff00ff,-0x000001},
-					{0xff0000,+0x000100},
-					{0xffff00,-0x010000},
-					{0x00ff00,+0x000001},
-					{0x00ffff,-0x000100},
-					{0x0000ff,+0x010000},
-				};
+        unsigned subval = (huedelta * newrange + 128) >> 8;
 
-				px += (tab[huesector][0]&graytab[newrange]) + subval*tab[huesector][1];
-			}
+        static const unsigned tab[18][2] = {
+          {0xff00ff, -0x000001},
+          {0xff0000, +0x000100},
+          {0xffff00, -0x010000},
+          {0x00ff00, +0x000001},
+          {0x00ffff, -0x000100},
+          {0x0000ff, +0x010000},
+          {0xff00ff, -0x000001},
+          {0xff0000, +0x000100},
+          {0xffff00, -0x010000},
+          {0x00ff00, +0x000001},
+          {0x00ffff, -0x000100},
+          {0x0000ff, +0x010000},
+          {0xff00ff, -0x000001},
+          {0xff0000, +0x000100},
+          {0xffff00, -0x010000},
+          {0x00ff00, +0x000001},
+          {0x00ffff, -0x000100},
+          {0x0000ff, +0x010000},
+        };
 
-			dst[x] = px;
-		}
+        px += (tab[huesector][0] & graytab[newrange]) + subval * tab[huesector][1];
+      }
 
-		ptr_increment(dst, dstpitch);
-	}
+      dst[x] = px;
+    }
+
+    ptr_increment(dst, dstpitch);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1372,242 +1400,268 @@ void HSVFilterData::RunScalar(uint32 *dst, ptrdiff_t dstpitch, uint32 w, uint32 
 //
 ///////////////////////////////////////////////////////////////////////////
 
-void HSVFilterData::RebuildSVTables() {
-	int val2 = (val+128) >> 8;
-	int valinvmask = val2>0 ? 0x1ff : 0;
-	int valscale = val2>0 ? (256 - val2) : (256+val2);
-	int i;
+void HSVFilterData::RebuildSVTables()
+{
+  int val2       = (val + 128) >> 8;
+  int valinvmask = val2 > 0 ? 0x1ff : 0;
+  int valscale   = val2 > 0 ? (256 - val2) : (256 + val2);
+  int i;
 
-	for(i=0; i<512; ++i) {
-		valtab[i][0] = (((i ^ valinvmask) * valscale + 128)>>8) ^ valinvmask;
-		valtab[i][1] = valtab[i][0] >= 256 ? 511 - valtab[i][0] : valtab[i][0];
-	}
+  for (i = 0; i < 512; ++i)
+  {
+    valtab[i][0] = (((i ^ valinvmask) * valscale + 128) >> 8) ^ valinvmask;
+    valtab[i][1] = valtab[i][0] >= 256 ? 511 - valtab[i][0] : valtab[i][0];
+  }
 
-	for(i=0; i<256; ++i) {
-		sattab[i] = (i * sat + 32768) >> 16;
-	}
+  for (i = 0; i < 256; ++i)
+  {
+    sattab[i] = (i * sat + 32768) >> 16;
+  }
 }
 
-static int hsv_start(VDXFilterActivation *fa, const VDXFilterFunctions *ff) {
-	HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
-	int i;
+static int hsv_start(VDXFilterActivation *fa, const VDXFilterFunctions *ff)
+{
+  HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
+  int            i;
 
-	mfd->divtab[0] = mfd->graytab[0] = 0;
-	for(i=1; i<256; ++i) {
-		mfd->divtab[i] = 0xFF0000/i;
-		mfd->graytab[i] = 0x010101*i;
-	}
+  mfd->divtab[0] = mfd->graytab[0] = 0;
+  for (i = 1; i < 256; ++i)
+  {
+    mfd->divtab[i]  = 0xFF0000 / i;
+    mfd->graytab[i] = 0x010101 * i;
+  }
 
-	mfd->RebuildSVTables();
+  mfd->RebuildSVTables();
 
-	return 0;
+  return 0;
 }
 
-static int hsv_stop(VDXFilterActivation *fa, const VDXFilterFunctions *ff) {
-	return 0;
+static int hsv_stop(VDXFilterActivation *fa, const VDXFilterFunctions *ff)
+{
+  return 0;
 }
 
-int hsv_run(const VDXFilterActivation *fa, const VDXFilterFunctions *ff) {	
-	HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
+int hsv_run(const VDXFilterActivation *fa, const VDXFilterFunctions *ff)
+{
+  HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
 
-	if (!fa->dst.w || !fa->dst.h)
-		return 0;
+  if (!fa->dst.w || !fa->dst.h)
+    return 0;
 
-	int phase = ((mfd->hue & 0xffff) * 6) >> 8;
-	int sectors = ((phase+256) / 512) % 3;
-	int shift = phase%512;
-	if (shift >= 256)
-		shift -= 512;
+  int phase   = ((mfd->hue & 0xffff) * 6) >> 8;
+  int sectors = ((phase + 256) / 512) % 3;
+  int shift   = phase % 512;
+  if (shift >= 256)
+    shift -= 512;
 
-//	int sat = (mfd->sat+128) >> 8;
-//	int val = (mfd->val+128) >> 8;
+  //	int sat = (mfd->sat+128) >> 8;
+  //	int val = (mfd->val+128) >> 8;
 
-	mfd->RunScalar(fa->dst.data, fa->dst.pitch, fa->dst.w, fa->dst.h, shift, sectors);
-//	hsv_run_MMX(fa->dst.data, fa->dst.pitch, fa->dst.w, fa->dst.h, shift, sectors, sat, val, mfd->divtab);
-//	hsv_run_ISSE(fa->dst.data, fa->dst.pitch, fa->dst.w, fa->dst.h, shift, sectors, sat, val, mfd->divtab);
+  mfd->RunScalar(fa->dst.data, fa->dst.pitch, fa->dst.w, fa->dst.h, shift, sectors);
+  //	hsv_run_MMX(fa->dst.data, fa->dst.pitch, fa->dst.w, fa->dst.h, shift, sectors, sat, val, mfd->divtab);
+  //	hsv_run_ISSE(fa->dst.data, fa->dst.pitch, fa->dst.w, fa->dst.h, shift, sectors, sat, val, mfd->divtab);
 
-	return 0;
+  return 0;
 }
 
-long hsv_param(VDXFilterActivation *fa, const VDXFilterFunctions *ff) {
-	const VDXPixmapLayout& pxlsrc = *fa->src.mpPixmapLayout;
-	VDXPixmapLayout& pxldst = *fa->dst.mpPixmapLayout;
+long hsv_param(VDXFilterActivation *fa, const VDXFilterFunctions *ff)
+{
+  const VDXPixmapLayout &pxlsrc = *fa->src.mpPixmapLayout;
+  VDXPixmapLayout &      pxldst = *fa->dst.mpPixmapLayout;
 
-	if (pxlsrc.format != nsVDXPixmap::kPixFormat_XRGB8888)
-		return FILTERPARAM_NOT_SUPPORTED;
+  if (pxlsrc.format != nsVDXPixmap::kPixFormat_XRGB8888)
+    return FILTERPARAM_NOT_SUPPORTED;
 
-	pxldst.pitch = pxlsrc.pitch;
-	return FILTERPARAM_PURE_TRANSFORM | FILTERPARAM_SUPPORTS_ALTFORMATS;
+  pxldst.pitch = pxlsrc.pitch;
+  return FILTERPARAM_PURE_TRANSFORM | FILTERPARAM_SUPPORTS_ALTFORMATS;
 }
 
 //////////////////
 
-static int hsv_init(VDXFilterActivation *fa, const VDXFilterFunctions *ff) {
-	HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
-	mfd->hue = 0;
-	mfd->sat = 65536;
-	mfd->val = 0;
-	return 0;
+static int hsv_init(VDXFilterActivation *fa, const VDXFilterFunctions *ff)
+{
+  HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
+  mfd->hue           = 0;
+  mfd->sat           = 65536;
+  mfd->val           = 0;
+  return 0;
 }
 
-static INT_PTR CALLBACK hsvDlgProc( HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
-	HSVFilterData *mfd = (HSVFilterData *)GetWindowLongPtr(hDlg, DWLP_USER);
+static INT_PTR CALLBACK hsvDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+  HSVFilterData *mfd = (HSVFilterData *)GetWindowLongPtr(hDlg, DWLP_USER);
 
-    switch (message)
-    {
-        case WM_INITDIALOG:
-			{
-				HWND hwnd;
-				mfd = (HSVFilterData *)lParam;
-				SetWindowLongPtr(hDlg, DWLP_USER, (LPARAM)mfd);
+  switch (message)
+  {
+    case WM_INITDIALOG: {
+      HWND hwnd;
+      mfd = (HSVFilterData *)lParam;
+      SetWindowLongPtr(hDlg, DWLP_USER, (LPARAM)mfd);
 
-				hwnd = GetDlgItem(hDlg, IDC_HUE);
-				SendMessage(hwnd, TBM_SETRANGEMIN, (WPARAM)FALSE, 0);
-				SendMessage(hwnd, TBM_SETRANGEMAX, (WPARAM)FALSE, 4096);
-				SendMessage(hwnd, TBM_SETPOS, (WPARAM)TRUE, ((mfd->hue+0x8008) & 0xffff) >> 4);
-				SendMessage(hDlg, WM_HSCROLL, 0, (LPARAM)hwnd);		// force label update
+      hwnd = GetDlgItem(hDlg, IDC_HUE);
+      SendMessage(hwnd, TBM_SETRANGEMIN, (WPARAM)FALSE, 0);
+      SendMessage(hwnd, TBM_SETRANGEMAX, (WPARAM)FALSE, 4096);
+      SendMessage(hwnd, TBM_SETPOS, (WPARAM)TRUE, ((mfd->hue + 0x8008) & 0xffff) >> 4);
+      SendMessage(hDlg, WM_HSCROLL, 0, (LPARAM)hwnd); // force label update
 
-				hwnd = GetDlgItem(hDlg, IDC_SATURATION);
-				SendMessage(hwnd, TBM_SETRANGEMIN, (WPARAM)FALSE, 0);
-				SendMessage(hwnd, TBM_SETRANGEMAX, (WPARAM)FALSE, 8192);
-				SendMessage(hwnd, TBM_SETPOS, (WPARAM)TRUE, (mfd->sat+8) >> 4);
-				SendMessage(hDlg, WM_HSCROLL, 0, (LPARAM)hwnd);		// force label update
+      hwnd = GetDlgItem(hDlg, IDC_SATURATION);
+      SendMessage(hwnd, TBM_SETRANGEMIN, (WPARAM)FALSE, 0);
+      SendMessage(hwnd, TBM_SETRANGEMAX, (WPARAM)FALSE, 8192);
+      SendMessage(hwnd, TBM_SETPOS, (WPARAM)TRUE, (mfd->sat + 8) >> 4);
+      SendMessage(hDlg, WM_HSCROLL, 0, (LPARAM)hwnd); // force label update
 
-				hwnd = GetDlgItem(hDlg, IDC_VALUE);
-				SendMessage(hwnd, TBM_SETRANGEMIN, (WPARAM)FALSE, 0);
-				SendMessage(hwnd, TBM_SETRANGEMAX, (WPARAM)FALSE, 8192);
-				SendMessage(hwnd, TBM_SETPOS, (WPARAM)TRUE, ((mfd->val+8)>>4) + 4096);
-				SendMessage(hDlg, WM_HSCROLL, 0, (LPARAM)hwnd);		// force label update
+      hwnd = GetDlgItem(hDlg, IDC_VALUE);
+      SendMessage(hwnd, TBM_SETRANGEMIN, (WPARAM)FALSE, 0);
+      SendMessage(hwnd, TBM_SETRANGEMAX, (WPARAM)FALSE, 8192);
+      SendMessage(hwnd, TBM_SETPOS, (WPARAM)TRUE, ((mfd->val + 8) >> 4) + 4096);
+      SendMessage(hDlg, WM_HSCROLL, 0, (LPARAM)hwnd); // force label update
 
-				mfd->ifp->InitButton((VDXHWND)GetDlgItem(hDlg, IDC_PREVIEW));
-			}
-            return (TRUE);
+      mfd->ifp->InitButton((VDXHWND)GetDlgItem(hDlg, IDC_PREVIEW));
+    }
+      return (TRUE);
 
-        case WM_COMMAND:
-			switch(LOWORD(wParam)) {
-            case IDOK:
-				mfd->ifp->Close();
-				EndDialog(hDlg, 0);
-				return TRUE;
-			case IDCANCEL:
-				mfd->ifp->Close();
-                EndDialog(hDlg, 1);
-                return TRUE;
-			case IDC_PREVIEW:
-				mfd->ifp->Toggle((VDXHWND)hDlg);
-				return TRUE;
+    case WM_COMMAND:
+      switch (LOWORD(wParam))
+      {
+        case IDOK:
+          mfd->ifp->Close();
+          EndDialog(hDlg, 0);
+          return TRUE;
+        case IDCANCEL:
+          mfd->ifp->Close();
+          EndDialog(hDlg, 1);
+          return TRUE;
+        case IDC_PREVIEW:
+          mfd->ifp->Toggle((VDXHWND)hDlg);
+          return TRUE;
+      }
+      break;
+
+    case WM_HSCROLL:
+      if (lParam)
+      {
+        HWND hwndSlider = (HWND)lParam;
+        int  val        = SendMessage(hwndSlider, TBM_GETPOS, 0, 0);
+        int  newval;
+        char buf[64];
+        bool redo = false;
+
+        switch (GetWindowLong(hwndSlider, GWL_ID))
+        {
+          case IDC_HUE:
+            sprintf(buf, "%+.1f%s", (val - 0x800) * (360.0 / 4096.0), VDTextWToA(L"\u00B0").c_str());
+            SetDlgItemText(hDlg, IDC_STATIC_HUE, buf);
+            newval = ((val + 0x800) << 4) & 0xfff0;
+            if (newval != mfd->hue)
+              redo = true;
+            mfd->hue = newval;
+            break;
+          case IDC_SATURATION:
+            sprintf(buf, "x%.1f%%", val * (100.0 / 4096.0));
+            SetDlgItemText(hDlg, IDC_STATIC_SATURATION, buf);
+            if (val != mfd->sat)
+            {
+              mfd->sat = val << 4;
+              redo     = true;
             }
             break;
+          case IDC_VALUE:
+            sprintf(buf, "%+.1f%%", val * (100. / 4096.0) - 100.0);
+            SetDlgItemText(hDlg, IDC_STATIC_VALUE, buf);
+            newval = (val << 4) - 65536;
+            if (newval != mfd->val)
+            {
+              mfd->val = newval;
+              redo     = true;
+            }
+            break;
+        }
 
-		case WM_HSCROLL:
-			if (lParam) {
-				HWND hwndSlider = (HWND)lParam;
-				int val = SendMessage(hwndSlider, TBM_GETPOS, 0, 0);
-				int newval;
-				char buf[64];
-				bool redo = false;
-
-				switch(GetWindowLong(hwndSlider, GWL_ID)) {
-				case IDC_HUE:
-					sprintf(buf, "%+.1f%s", (val-0x800) * (360.0 / 4096.0), VDTextWToA(L"\u00B0").c_str());
-					SetDlgItemText(hDlg, IDC_STATIC_HUE, buf);
-					newval = ((val+0x800)<<4) & 0xfff0;
-					if (newval != mfd->hue)
-						redo = true;
-					mfd->hue = newval;
-					break;
-				case IDC_SATURATION:
-					sprintf(buf, "x%.1f%%", val * (100.0 / 4096.0));
-					SetDlgItemText(hDlg, IDC_STATIC_SATURATION, buf);
-					if (val != mfd->sat) {
-						mfd->sat = val << 4;
-						redo = true;
-					}
-					break;
-				case IDC_VALUE:
-					sprintf(buf, "%+.1f%%", val * (100. / 4096.0) - 100.0);
-					SetDlgItemText(hDlg, IDC_STATIC_VALUE, buf);
-					newval = (val<<4) - 65536;
-					if (newval != mfd->val) {
-						mfd->val = newval;
-						redo = true;
-					}
-					break;
-				}
-
-				if (redo) {
-					mfd->RebuildSVTables();
-					mfd->ifp->RedoFrame();
-				}
-			}
-			break;
-    }
-    return FALSE;
+        if (redo)
+        {
+          mfd->RebuildSVTables();
+          mfd->ifp->RedoFrame();
+        }
+      }
+      break;
+  }
+  return FALSE;
 }
 
-static int hsv_config(VDXFilterActivation *fa, const VDXFilterFunctions *ff, VDXHWND hWnd) {
-	HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
-	HSVFilterData mfd2 = *mfd;
-	int ret;
+static int hsv_config(VDXFilterActivation *fa, const VDXFilterFunctions *ff, VDXHWND hWnd)
+{
+  HSVFilterData *mfd  = (HSVFilterData *)fa->filter_data;
+  HSVFilterData  mfd2 = *mfd;
+  int            ret;
 
-	mfd->ifp = fa->ifp;
+  mfd->ifp = fa->ifp;
 
-	ret = DialogBoxParam(g_hInst, MAKEINTRESOURCE(IDD_FILTER_HSV), (HWND)hWnd, hsvDlgProc, (LPARAM)mfd);
+  ret = DialogBoxParam(g_hInst, MAKEINTRESOURCE(IDD_FILTER_HSV), (HWND)hWnd, hsvDlgProc, (LPARAM)mfd);
 
-	if (ret)
-		*mfd = mfd2;
+  if (ret)
+    *mfd = mfd2;
 
-	return ret;
+  return ret;
 }
 
-static void hsv_string2(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, char *buf, int maxlen) {
-	HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
+static void hsv_string2(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, char *buf, int maxlen)
+{
+  HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
 
-	_snprintf(buf, maxlen, " (h%+.0f%s, sx%.0f%%, v%+.0f%%)", (short)mfd->hue * (360.0 / 65536.0), VDTextWToA(L"\u00B0").c_str(), mfd->sat * (100.0 / 65536.0), mfd->val * (100.0 / 65536.0));
+  _snprintf(
+    buf,
+    maxlen,
+    " (h%+.0f%s, sx%.0f%%, v%+.0f%%)",
+    (short)mfd->hue * (360.0 / 65536.0),
+    VDTextWToA(L"\u00B0").c_str(),
+    mfd->sat * (100.0 / 65536.0),
+    mfd->val * (100.0 / 65536.0));
 }
 
-static void hsv_script_config(IVDXScriptInterpreter *isi, void *lpVoid, VDXScriptValue *argv, int argc) {
-	VDXFilterActivation *fa = (VDXFilterActivation *)lpVoid;
-	HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
+static void hsv_script_config(IVDXScriptInterpreter *isi, void *lpVoid, VDXScriptValue *argv, int argc)
+{
+  VDXFilterActivation *fa  = (VDXFilterActivation *)lpVoid;
+  HSVFilterData *      mfd = (HSVFilterData *)fa->filter_data;
 
-	mfd->hue	= argv[0].asInt();
-	mfd->sat	= argv[1].asInt();
-	mfd->val	= argv[2].asInt();
+  mfd->hue = argv[0].asInt();
+  mfd->sat = argv[1].asInt();
+  mfd->val = argv[2].asInt();
 }
 
-static VDXScriptFunctionDef hsv_func_defs[]={
-	{ (VDXScriptFunctionPtr)hsv_script_config, "Config", "0iii" },
-	{ NULL },
+static VDXScriptFunctionDef hsv_func_defs[] = {
+  {(VDXScriptFunctionPtr)hsv_script_config, "Config", "0iii"},
+  {NULL},
 };
 
-static VDXScriptObject hsv_obj={
-	NULL, hsv_func_defs
-};
+static VDXScriptObject hsv_obj = {NULL, hsv_func_defs};
 
-static bool hsv_script_line(VDXFilterActivation *fa, const VDXFilterFunctions *ff, char *buf, int buflen) {
-	HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
+static bool hsv_script_line(VDXFilterActivation *fa, const VDXFilterFunctions *ff, char *buf, int buflen)
+{
+  HSVFilterData *mfd = (HSVFilterData *)fa->filter_data;
 
-	_snprintf(buf, buflen, "Config(%d,%d,%d)", mfd->hue, mfd->sat, mfd->val);
+  _snprintf(buf, buflen, "Config(%d,%d,%d)", mfd->hue, mfd->sat, mfd->val);
 
-	return true;
+  return true;
 }
 
-extern const VDXFilterDefinition g_VDVFHSV={
-	0,0,NULL,
-	"HSV adjust",
-	"Adjusts color, saturation, and brightness of video.\n\n",
-	NULL,NULL,
-	sizeof(HSVFilterData),
-	hsv_init,
-	NULL,
-	hsv_run,
-	hsv_param,
-	hsv_config,
-	NULL,
-	hsv_start,
-	hsv_stop,
-	&hsv_obj,
-	hsv_script_line,
+extern const VDXFilterDefinition g_VDVFHSV = {
+  0,
+  0,
+  NULL,
+  "HSV adjust",
+  "Adjusts color, saturation, and brightness of video.\n\n",
+  NULL,
+  NULL,
+  sizeof(HSVFilterData),
+  hsv_init,
+  NULL,
+  hsv_run,
+  hsv_param,
+  hsv_config,
+  NULL,
+  hsv_start,
+  hsv_stop,
+  &hsv_obj,
+  hsv_script_line,
 
-	hsv_string2
-};
+  hsv_string2};

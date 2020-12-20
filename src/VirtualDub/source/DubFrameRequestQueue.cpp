@@ -19,51 +19,60 @@
 #include <vd2/system/refcount.h>
 #include "DubFrameRequestQueue.h"
 
-VDDubFrameRequestQueue::VDDubFrameRequestQueue() {
+VDDubFrameRequestQueue::VDDubFrameRequestQueue() {}
+
+VDDubFrameRequestQueue::~VDDubFrameRequestQueue()
+{
+  Shutdown();
 }
 
-VDDubFrameRequestQueue::~VDDubFrameRequestQueue() {
-	Shutdown();
+const VDSignal &VDDubFrameRequestQueue::GetNotEmptySignal() const
+{
+  return mNotEmpty;
 }
 
-const VDSignal& VDDubFrameRequestQueue::GetNotEmptySignal() const {
-	return mNotEmpty;
+uint32 VDDubFrameRequestQueue::GetQueueLength()
+{
+  vdsynchronized(mMutex)
+  {
+    return mQueue.size();
+  }
 }
 
-uint32 VDDubFrameRequestQueue::GetQueueLength() {
-	vdsynchronized(mMutex) {
-		return mQueue.size();
-	}
+void VDDubFrameRequestQueue::Shutdown()
+{
+  vdsynchronized(mMutex)
+  {
+    mQueue.clear();
+  }
 }
 
-void VDDubFrameRequestQueue::Shutdown() {
-	vdsynchronized(mMutex) {
-		mQueue.clear();
-	}
+void VDDubFrameRequestQueue::AddRequest(const VDDubFrameRequest &request)
+{
+  bool shouldSignal = false;
+
+  vdsynchronized(mMutex)
+  {
+    shouldSignal = mQueue.empty();
+
+    mQueue.push_back(request);
+  }
+
+  if (shouldSignal)
+    mNotEmpty.signal();
 }
 
-void VDDubFrameRequestQueue::AddRequest(const VDDubFrameRequest& request) {
-	bool shouldSignal = false;
+bool VDDubFrameRequestQueue::RemoveRequest(VDDubFrameRequest &request)
+{
+  vdsynchronized(mMutex)
+  {
+    if (mQueue.empty())
+      return false;
 
-	vdsynchronized(mMutex) {
-		shouldSignal = mQueue.empty();
+    request = mQueue.front();
+    mQueue.pop_front();
 
-		mQueue.push_back(request);
-	}
-
-	if (shouldSignal)
-		mNotEmpty.signal();
-}
-
-bool VDDubFrameRequestQueue::RemoveRequest(VDDubFrameRequest& request) {
-	vdsynchronized(mMutex) {
-		if (mQueue.empty())
-			return false;
-
-		request = mQueue.front();
-		mQueue.pop_front();
-
-		mLowWatermarkEvent.Raise(this, false);
-		return true;
-	}
+    mLowWatermarkEvent.Raise(this, false);
+    return true;
+  }
 }

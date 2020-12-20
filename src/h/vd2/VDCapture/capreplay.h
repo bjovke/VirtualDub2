@@ -23,15 +23,15 @@
 
 class IVDCaptureDriverCallback;
 
-class VDINTERFACE IVDCaptureReplayDriver {
+class VDINTERFACE IVDCaptureReplayDriver
+{
 public:
-	virtual ~IVDCaptureReplayDriver() {}
+  virtual ~IVDCaptureReplayDriver() {}
 
-	virtual void SetChildCallback(IVDCaptureDriverCallback *pChild) = 0;
+  virtual void SetChildCallback(IVDCaptureDriverCallback *pChild) = 0;
 
-	virtual void Init(const wchar_t *filename) = 0;
-	virtual bool ReplayNext() = 0;
-
+  virtual void Init(const wchar_t *filename) = 0;
+  virtual bool ReplayNext()                  = 0;
 };
 
 IVDCaptureReplayDriver *VDCreateCaptureReplayDriver();

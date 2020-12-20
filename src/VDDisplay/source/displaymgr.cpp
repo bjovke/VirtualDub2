@@ -22,640 +22,755 @@
 
 ///////////////////////////////////////////////////////////////////////////
 VDVideoDisplayClient::VDVideoDisplayClient()
-	: mpManager(NULL)
-	, mbPreciseMode(false)
-	, mbTicksEnabled(false)
-	, mbRequiresFullScreen(false)
+  : mpManager(NULL), mbPreciseMode(false), mbTicksEnabled(false), mbRequiresFullScreen(false)
+{}
+
+VDVideoDisplayClient::~VDVideoDisplayClient() {}
+
+void VDVideoDisplayClient::Attach(VDVideoDisplayManager *pManager)
 {
+  VDASSERT(!mpManager);
+  mpManager = pManager;
+  if (mbTicksEnabled)
+    mpManager->ModifyTicksEnabled(true);
+  if (mbPreciseMode)
+    mpManager->ModifyPreciseMode(true);
 }
 
-VDVideoDisplayClient::~VDVideoDisplayClient() {
+void VDVideoDisplayClient::Detach(VDVideoDisplayManager *pManager)
+{
+  VDASSERT(mpManager == pManager);
+  if (mbPreciseMode)
+    mpManager->ModifyPreciseMode(false);
+  if (mbTicksEnabled)
+    mpManager->ModifyTicksEnabled(false);
+  mpManager = NULL;
 }
 
-void VDVideoDisplayClient::Attach(VDVideoDisplayManager *pManager) {
-	VDASSERT(!mpManager);
-	mpManager = pManager;
-	if (mbTicksEnabled)
-		mpManager->ModifyTicksEnabled(true);
-	if (mbPreciseMode)
-		mpManager->ModifyPreciseMode(true);
+void VDVideoDisplayClient::SetPreciseMode(bool enabled)
+{
+  if (mbPreciseMode == enabled)
+  {
+    if (enabled)
+      mpManager->ReaffirmPreciseMode();
+    return;
+  }
+
+  mbPreciseMode = enabled;
+  mpManager->ModifyPreciseMode(enabled);
 }
 
-void VDVideoDisplayClient::Detach(VDVideoDisplayManager *pManager) {
-	VDASSERT(mpManager == pManager);
-	if (mbPreciseMode)
-		mpManager->ModifyPreciseMode(false);
-	if (mbTicksEnabled)
-		mpManager->ModifyTicksEnabled(false);
-	mpManager = NULL;
+void VDVideoDisplayClient::SetTicksEnabled(bool enabled)
+{
+  if (mbTicksEnabled == enabled)
+    return;
+
+  mbTicksEnabled = enabled;
+  mpManager->ModifyTicksEnabled(enabled);
 }
 
-void VDVideoDisplayClient::SetPreciseMode(bool enabled) {
-	if (mbPreciseMode == enabled) {
-		if (enabled)
-			mpManager->ReaffirmPreciseMode();
-		return;
-	}
+void VDVideoDisplayClient::SetRequiresFullScreen(bool enabled)
+{
+  if (mbRequiresFullScreen == enabled)
+    return;
 
-	mbPreciseMode = enabled;
-	mpManager->ModifyPreciseMode(enabled);
+  mbRequiresFullScreen = enabled;
 }
 
-void VDVideoDisplayClient::SetTicksEnabled(bool enabled) {
-	if (mbTicksEnabled == enabled)
-		return;
-
-	mbTicksEnabled = enabled;
-	mpManager->ModifyTicksEnabled(enabled);
+const uint8 *VDVideoDisplayClient::GetLogicalPalette() const
+{
+  return mpManager->GetLogicalPalette();
 }
 
-void VDVideoDisplayClient::SetRequiresFullScreen(bool enabled) {
-	if (mbRequiresFullScreen == enabled)
-		return;
-
-	mbRequiresFullScreen = enabled;
+HPALETTE VDVideoDisplayClient::GetPalette() const
+{
+  return mpManager->GetPalette();
 }
 
-const uint8 *VDVideoDisplayClient::GetLogicalPalette() const {
-	return mpManager->GetLogicalPalette();
-}
-
-HPALETTE VDVideoDisplayClient::GetPalette() const {
-	return mpManager->GetPalette();
-}
-
-void VDVideoDisplayClient::RemapPalette() {
-	mpManager->RemapPalette();
+void VDVideoDisplayClient::RemapPalette()
+{
+  mpManager->RemapPalette();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 VDVideoDisplayManager::VDVideoDisplayManager()
-	: mTicksEnabledCount(0)
-	, mPreciseModeCount(0)
-	, mPreciseModePeriod(0)
-	, mPreciseModeLastUse(0)
-	, mhPalette(NULL)
-	, mWndClass(NULL)
-	, mhwnd(NULL)
-	, mbMultithreaded(false)
-	, mbAppActive(false)
-	, mbBackgroundFallbackEnabled(true)
-	, mThreadID(0)
-	, mOutstandingTicks(0)
+  : mTicksEnabledCount(0), mPreciseModeCount(0), mPreciseModePeriod(0), mPreciseModeLastUse(0), mhPalette(NULL),
+    mWndClass(NULL), mhwnd(NULL), mbMultithreaded(false), mbAppActive(false), mbBackgroundFallbackEnabled(true),
+    mThreadID(0), mOutstandingTicks(0)
+{}
+
+VDVideoDisplayManager::~VDVideoDisplayManager()
 {
+  Shutdown();
 }
 
-VDVideoDisplayManager::~VDVideoDisplayManager() {
-	Shutdown();
+bool VDVideoDisplayManager::Init()
+{
+  if (!mbMultithreaded)
+  {
+    if (!RegisterWindowClass())
+    {
+      Shutdown();
+      return false;
+    }
+
+    mhwnd = CreateWindowEx(
+      WS_EX_NOPARENTNOTIFY,
+      (LPCTSTR)mWndClass,
+      "",
+      WS_OVERLAPPEDWINDOW,
+      0,
+      0,
+      0,
+      0,
+      NULL,
+      NULL,
+      VDGetLocalModuleHandleW32(),
+      this);
+    if (!mhwnd)
+    {
+      Shutdown();
+      return false;
+    }
+
+    mThreadID = VDGetCurrentThreadID();
+  }
+
+  if (!ThreadStart())
+  {
+    Shutdown();
+    return false;
+  }
+
+  mStarted.wait();
+
+  if (mbMultithreaded)
+  {
+    mThreadID = getThreadID();
+  }
+
+  return true;
 }
 
-bool VDVideoDisplayManager::Init() {
-	if (!mbMultithreaded) {
-		if (!RegisterWindowClass()) {
-			Shutdown();
-			return false;
-		}
+void VDVideoDisplayManager::Shutdown()
+{
+  VDASSERT(mClients.empty());
 
-		mhwnd = CreateWindowEx(WS_EX_NOPARENTNOTIFY, (LPCTSTR)mWndClass, "", WS_OVERLAPPEDWINDOW, 0, 0, 0, 0, NULL, NULL, VDGetLocalModuleHandleW32(), this);
-		if (!mhwnd) {
-			Shutdown();
-			return false;
-		}
+  if (isThreadAttached())
+  {
+    PostThreadMessage(getThreadID(), WM_QUIT, 0, 0);
+    ThreadWait();
+  }
 
-		mThreadID = VDGetCurrentThreadID();
-	}
+  if (!mbMultithreaded)
+  {
+    if (mhwnd)
+    {
+      DestroyWindow(mhwnd);
+      mhwnd = NULL;
+    }
 
-	if (!ThreadStart()) {
-		Shutdown();
-		return false;
-	}
-
-	mStarted.wait();
-
-	if (mbMultithreaded) {
-		mThreadID = getThreadID();
-	}
-
-	return true;
+    UnregisterWindowClass();
+    mThreadID = 0;
+  }
 }
 
-void VDVideoDisplayManager::Shutdown() {
-	VDASSERT(mClients.empty());
-
-	if (isThreadAttached()) {
-		PostThreadMessage(getThreadID(), WM_QUIT, 0, 0);
-		ThreadWait();
-	}
-
-	if (!mbMultithreaded) {
-		if (mhwnd) {
-			DestroyWindow(mhwnd);
-			mhwnd = NULL;
-		}
-
-		UnregisterWindowClass();
-		mThreadID = 0;
-	}
+void VDVideoDisplayManager::SetBackgroundFallbackEnabled(bool enabled)
+{
+  if (mhwnd)
+    PostMessage(mhwnd, WM_USER + 101, enabled, 0);
 }
 
-void VDVideoDisplayManager::SetBackgroundFallbackEnabled(bool enabled) {
-	if (mhwnd)
-		PostMessage(mhwnd, WM_USER+101, enabled, 0);
+void VDVideoDisplayManager::RemoteCall(void (*function)(void *), void *data)
+{
+  if (VDGetCurrentThreadID() == mThreadID)
+  {
+    function(data);
+    return;
+  }
+
+  RemoteCallNode node;
+  node.mpFunction = function;
+  node.mpData     = data;
+
+  vdsynchronized(mMutex)
+  {
+    mRemoteCalls.push_back(&node);
+  }
+
+  PostThreadMessage(getThreadID(), WM_NULL, 0, 0);
+
+  HANDLE h = node.mSignal.getHandle();
+  for (;;)
+  {
+    DWORD dwResult = MsgWaitForMultipleObjects(1, &h, FALSE, INFINITE, QS_SENDMESSAGE);
+
+    if (dwResult != WAIT_OBJECT_0 + 1)
+      break;
+
+    MSG msg;
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE | PM_QS_SENDMESSAGE))
+    {
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
+    }
+  }
 }
 
-void VDVideoDisplayManager::RemoteCall(void (*function)(void *), void *data) {
-	if (VDGetCurrentThreadID() == mThreadID) {
-		function(data);
-		return;
-	}
-
-	RemoteCallNode node;
-	node.mpFunction = function;
-	node.mpData = data;
-
-	vdsynchronized(mMutex) {
-		mRemoteCalls.push_back(&node);
-	}
-
-	PostThreadMessage(getThreadID(), WM_NULL, 0, 0);
-
-	HANDLE h = node.mSignal.getHandle();
-	for(;;) {
-		DWORD dwResult = MsgWaitForMultipleObjects(1, &h, FALSE, INFINITE, QS_SENDMESSAGE);
-
-		if (dwResult != WAIT_OBJECT_0+1)
-			break;
-
-		MSG msg;
-		while(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE | PM_QS_SENDMESSAGE)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-	}
+void VDVideoDisplayManager::AddClient(VDVideoDisplayClient *pClient)
+{
+  VDASSERT(VDGetCurrentThreadID() == mThreadID);
+  mClients.push_back(pClient);
+  pClient->Attach(this);
 }
 
-void VDVideoDisplayManager::AddClient(VDVideoDisplayClient *pClient) {
-	VDASSERT(VDGetCurrentThreadID() == mThreadID);
-	mClients.push_back(pClient);
-	pClient->Attach(this);
+void VDVideoDisplayManager::RemoveClient(VDVideoDisplayClient *pClient)
+{
+  VDASSERT(VDGetCurrentThreadID() == mThreadID);
+  pClient->Detach(this);
+  mClients.erase(mClients.fast_find(pClient));
 }
 
-void VDVideoDisplayManager::RemoveClient(VDVideoDisplayClient *pClient) {
-	VDASSERT(VDGetCurrentThreadID() == mThreadID);
-	pClient->Detach(this);
-	mClients.erase(mClients.fast_find(pClient));
+void VDVideoDisplayManager::ModifyPreciseMode(bool enabled)
+{
+  VDASSERT(VDGetCurrentThreadID() == mThreadID);
+
+  if (!mbMultithreaded)
+  {
+    return;
+  }
+
+  if (enabled)
+  {
+    int rc = ++mPreciseModeCount;
+    VDASSERT(rc < 100000);
+    if (rc == 1)
+    {
+      if (mbMultithreaded)
+        EnterPreciseMode();
+      else
+      {
+        ReaffirmPreciseMode();
+        PostThreadMessage(getThreadID(), WM_NULL, 0, 0);
+      }
+    }
+  }
+  else
+  {
+    int rc = --mPreciseModeCount;
+    VDASSERT(rc >= 0);
+    if (!rc)
+      ExitPreciseMode();
+  }
 }
 
-void VDVideoDisplayManager::ModifyPreciseMode(bool enabled) {
-	VDASSERT(VDGetCurrentThreadID() == mThreadID);
+void VDVideoDisplayManager::ModifyTicksEnabled(bool enabled)
+{
+  VDASSERT(VDGetCurrentThreadID() == mThreadID);
+  if (enabled)
+  {
+    int rc = ++mTicksEnabledCount;
+    VDASSERT(rc < 100000);
 
-	if (!mbMultithreaded) {
-		return;
-	}
+    if (rc == 1)
+    {
+      PostThreadMessage(getThreadID(), WM_NULL, 0, 0);
+      if (!mbMultithreaded)
+        mTickTimerId = SetTimer(mhwnd, kTimerID_Tick, 10, NULL);
+    }
+  }
+  else
+  {
+    int rc = --mTicksEnabledCount;
+    VDASSERT(rc >= 0);
 
-	if (enabled) {
-		int rc = ++mPreciseModeCount;
-		VDASSERT(rc < 100000);
-		if (rc == 1) {
-			if (mbMultithreaded)
-				EnterPreciseMode();
-			else {
-				ReaffirmPreciseMode();
-				PostThreadMessage(getThreadID(), WM_NULL, 0, 0);
-			}
-		}
-	} else {
-		int rc = --mPreciseModeCount;
-		VDASSERT(rc >= 0);
-		if (!rc)
-			ExitPreciseMode();
-	}
+    if (!rc)
+    {
+      if (!mbMultithreaded && mTickTimerId)
+      {
+        KillTimer(mhwnd, mTickTimerId);
+        mTickTimerId = 0;
+      }
+    }
+  }
 }
 
-void VDVideoDisplayManager::ModifyTicksEnabled(bool enabled) {
-	VDASSERT(VDGetCurrentThreadID() == mThreadID);
-	if (enabled) {
-		int rc = ++mTicksEnabledCount;
-		VDASSERT(rc < 100000);
-
-		if (rc == 1) {
-			PostThreadMessage(getThreadID(), WM_NULL, 0, 0);
-			if (!mbMultithreaded)
-				mTickTimerId = SetTimer(mhwnd, kTimerID_Tick, 10, NULL);
-		}
-	} else {
-		int rc = --mTicksEnabledCount;
-		VDASSERT(rc >= 0);
-
-		if (!rc) {
-			if (!mbMultithreaded && mTickTimerId) {
-				KillTimer(mhwnd, mTickTimerId);
-				mTickTimerId = 0;
-			}
-		}
-	}
+void VDVideoDisplayManager::ThreadRun()
+{
+  if (mbMultithreaded)
+    ThreadRunFullRemote();
+  else
+    ThreadRunTimerOnly();
 }
 
-void VDVideoDisplayManager::ThreadRun() {
-	if (mbMultithreaded)
-		ThreadRunFullRemote();
-	else
-		ThreadRunTimerOnly();
+void VDVideoDisplayManager::ThreadRunFullRemote()
+{
+  if (RegisterWindowClass())
+  {
+    mhwnd = CreateWindowEx(
+      WS_EX_NOPARENTNOTIFY,
+      (LPCTSTR)mWndClass,
+      "",
+      WS_OVERLAPPEDWINDOW,
+      0,
+      0,
+      0,
+      0,
+      NULL,
+      NULL,
+      VDGetLocalModuleHandleW32(),
+      this);
+
+    if (mhwnd)
+    {
+      MSG msg;
+      PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE);
+      mThreadID = VDGetCurrentThreadID();
+      mStarted.signal();
+
+      bool timerActive = false;
+      for (;;)
+      {
+        DWORD ret = MsgWaitForMultipleObjects(0, NULL, TRUE, 1, QS_ALLINPUT);
+
+        if (ret == WAIT_OBJECT_0)
+        {
+          bool success = false;
+          while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+          {
+            if (msg.message == WM_QUIT)
+              goto xit;
+            success = true;
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+          }
+
+          DispatchRemoteCalls();
+
+          if (success)
+            continue;
+
+          ret = WAIT_TIMEOUT;
+          ::Sleep(1);
+        }
+
+        if (ret == WAIT_TIMEOUT)
+        {
+          if (mTicksEnabledCount > 0)
+          {
+            if (!timerActive)
+            {
+              timerActive  = true;
+              mTickTimerId = SetTimer(mhwnd, kTimerID_Tick, 10, NULL);
+            }
+            DispatchTicks();
+          }
+          else
+          {
+            if (timerActive)
+            {
+              timerActive = false;
+              if (mTickTimerId)
+              {
+                KillTimer(mhwnd, mTickTimerId);
+                mTickTimerId = 0;
+              }
+            }
+            WaitMessage();
+          }
+        }
+        else
+          break;
+      }
+    xit:
+      DestroyWindow(mhwnd);
+      mhwnd = NULL;
+    }
+  }
+  UnregisterWindowClass();
 }
 
-void VDVideoDisplayManager::ThreadRunFullRemote() {
-	if (RegisterWindowClass()) {
-		mhwnd = CreateWindowEx(WS_EX_NOPARENTNOTIFY, (LPCTSTR)mWndClass, "", WS_OVERLAPPEDWINDOW, 0, 0, 0, 0, NULL, NULL, VDGetLocalModuleHandleW32(), this);
+void VDVideoDisplayManager::ThreadRunTimerOnly()
+{
+  MSG msg;
+  PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE);
+  mStarted.signal();
 
-		if (mhwnd) {
-			MSG msg;
-			PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE);
-			mThreadID = VDGetCurrentThreadID();
-			mStarted.signal();
+  bool precise = false;
+  for (;;)
+  {
+    uint32 timeSinceLastPrecise = ::GetTickCount() - mPreciseModeLastUse;
 
-			bool timerActive = false;
-			for(;;) {
-				DWORD ret = MsgWaitForMultipleObjects(0, NULL, TRUE, 1, QS_ALLINPUT);
+    if (precise)
+    {
+      if (timeSinceLastPrecise > 1000)
+      {
+        precise = false;
+        ExitPreciseMode();
+      }
+    }
+    else
+    {
+      if (timeSinceLastPrecise < 500)
+      {
+        precise = true;
+        EnterPreciseMode();
+      }
+    }
 
-				if (ret == WAIT_OBJECT_0) {
-					bool success = false;
-					while(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-						if (msg.message == WM_QUIT)
-							goto xit;
-						success = true;
-						TranslateMessage(&msg);
-						DispatchMessage(&msg);
-					}
+    DWORD ret = MsgWaitForMultipleObjects(0, NULL, TRUE, 1, QS_ALLINPUT);
 
-					DispatchRemoteCalls();
+    if (ret == WAIT_OBJECT_0)
+    {
+      bool success = false;
+      while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+      {
+        if (msg.message == WM_QUIT)
+          return;
+        success = true;
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+      }
 
-					if (success)
-						continue;
+      if (success)
+        continue;
 
-					ret = WAIT_TIMEOUT;
-					::Sleep(1);
-				}
-				
-				if (ret == WAIT_TIMEOUT) {
-					if (mTicksEnabledCount > 0) {
-						if (!timerActive) {
-							timerActive = true;
-							mTickTimerId = SetTimer(mhwnd, kTimerID_Tick, 10, NULL);
-						}
-						DispatchTicks();
-					} else {
-						if (timerActive) {
-							timerActive = false;
-							if (mTickTimerId) {
-								KillTimer(mhwnd, mTickTimerId);
-								mTickTimerId = 0;
-							}
-						}
-						WaitMessage();
-					}
-				} else
-					break;
-			}
-xit:
-			DestroyWindow(mhwnd);
-			mhwnd = NULL;
-		}
-	}
-	UnregisterWindowClass();
+      ret = WAIT_TIMEOUT;
+      ::Sleep(1);
+    }
+
+    if (ret == WAIT_TIMEOUT)
+    {
+      if (mTicksEnabledCount > 0)
+        PostTick();
+      else
+        WaitMessage();
+    }
+    else
+      break;
+  }
+
+  if (precise)
+    ExitPreciseMode();
 }
 
-void VDVideoDisplayManager::ThreadRunTimerOnly() {
-	MSG msg;
-	PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE);
-	mStarted.signal();
+void VDVideoDisplayManager::DispatchTicks()
+{
+  Clients::iterator it(mClients.begin()), itEnd(mClients.end());
+  for (; it != itEnd; ++it)
+  {
+    VDVideoDisplayClient *pClient = *it;
 
-	bool precise = false;
-	for(;;) {
-		uint32 timeSinceLastPrecise = ::GetTickCount() - mPreciseModeLastUse;
-
-		if (precise) {
-			if (timeSinceLastPrecise > 1000) {
-				precise = false;
-				ExitPreciseMode();
-			}
-		} else {
-			if (timeSinceLastPrecise < 500) {
-				precise = true;
-				EnterPreciseMode();
-			}
-		}
-
-		DWORD ret = MsgWaitForMultipleObjects(0, NULL, TRUE, 1, QS_ALLINPUT);
-
-		if (ret == WAIT_OBJECT_0) {
-			bool success = false;
-			while(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-				if (msg.message == WM_QUIT)
-					return;
-				success = true;
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-			}
-
-			if (success)
-				continue;
-
-			ret = WAIT_TIMEOUT;
-			::Sleep(1);
-		}
-		
-		if (ret == WAIT_TIMEOUT) {
-			if (mTicksEnabledCount > 0)
-				PostTick();
-			else
-				WaitMessage();
-		} else
-			break;
-	}
-
-	if (precise)
-		ExitPreciseMode();
+    if (pClient->mbTicksEnabled)
+      pClient->OnTick();
+  }
 }
 
-void VDVideoDisplayManager::DispatchTicks() {
-	Clients::iterator it(mClients.begin()), itEnd(mClients.end());
-	for(; it!=itEnd; ++it) {
-		VDVideoDisplayClient *pClient = *it;
-
-		if (pClient->mbTicksEnabled)
-			pClient->OnTick();
-	}
+void VDVideoDisplayManager::PostTick()
+{
+  if (!mOutstandingTicks.xchg(1))
+  {
+    PostMessage(mhwnd, WM_TIMER, kTimerID_Tick, 0);
+  }
 }
 
-void VDVideoDisplayManager::PostTick() {
-	if (!mOutstandingTicks.xchg(1)) {
-		PostMessage(mhwnd, WM_TIMER, kTimerID_Tick, 0);
-	}
+void VDVideoDisplayManager::DispatchRemoteCalls()
+{
+  vdsynchronized(mMutex)
+  {
+    while (!mRemoteCalls.empty())
+    {
+      RemoteCallNode *rcn = mRemoteCalls.back();
+      mRemoteCalls.pop_back();
+      rcn->mpFunction(rcn->mpData);
+      rcn->mSignal.signal();
+    }
+  }
 }
 
-void VDVideoDisplayManager::DispatchRemoteCalls() {
-	vdsynchronized(mMutex) {
-		while(!mRemoteCalls.empty()) {
-			RemoteCallNode *rcn = mRemoteCalls.back();
-			mRemoteCalls.pop_back();
-			rcn->mpFunction(rcn->mpData);
-			rcn->mSignal.signal();
-		}
-	}
+void VDVideoDisplayManager::EnterPreciseMode()
+{
+  TIMECAPS tc;
+  if (
+    !mPreciseModePeriod && TIMERR_NOERROR == ::timeGetDevCaps(&tc, sizeof tc) &&
+    TIMERR_NOERROR == ::timeBeginPeriod(tc.wPeriodMin))
+  {
+    mPreciseModePeriod = tc.wPeriodMin;
+    SetThreadPriority(getThreadHandle(), THREAD_PRIORITY_HIGHEST);
+  }
 }
 
-void VDVideoDisplayManager::EnterPreciseMode() {
-	TIMECAPS tc;
-	if (!mPreciseModePeriod &&
-		TIMERR_NOERROR == ::timeGetDevCaps(&tc, sizeof tc) &&
-		TIMERR_NOERROR == ::timeBeginPeriod(tc.wPeriodMin))
-	{
-		mPreciseModePeriod = tc.wPeriodMin;
-		SetThreadPriority(getThreadHandle(), THREAD_PRIORITY_HIGHEST);
-	}
+void VDVideoDisplayManager::ExitPreciseMode()
+{
+  if (mPreciseModePeriod)
+  {
+    timeEndPeriod(mPreciseModePeriod);
+    mPreciseModePeriod = 0;
+  }
 }
 
-void VDVideoDisplayManager::ExitPreciseMode() {
-	if (mPreciseModePeriod) {
-		timeEndPeriod(mPreciseModePeriod);
-		mPreciseModePeriod = 0;
-	}
-}
-
-void VDVideoDisplayManager::ReaffirmPreciseMode() {
-	mPreciseModeLastUse = ::GetTickCount();
+void VDVideoDisplayManager::ReaffirmPreciseMode()
+{
+  mPreciseModeLastUse = ::GetTickCount();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-bool VDVideoDisplayManager::RegisterWindowClass() {
-	WNDCLASS wc;
-	HMODULE hInst = VDGetLocalModuleHandleW32();
+bool VDVideoDisplayManager::RegisterWindowClass()
+{
+  WNDCLASS wc;
+  HMODULE  hInst = VDGetLocalModuleHandleW32();
 
-	wc.style			= 0;
-	wc.lpfnWndProc		= StaticWndProc;
-	wc.cbClsExtra		= 0;
-	wc.cbWndExtra		= sizeof(VDVideoDisplayManager *);
-	wc.hInstance		= hInst;
-	wc.hIcon			= 0;
-	wc.hCursor			= 0;
-	wc.hbrBackground	= 0;
-	wc.lpszMenuName		= 0;
+  wc.style         = 0;
+  wc.lpfnWndProc   = StaticWndProc;
+  wc.cbClsExtra    = 0;
+  wc.cbWndExtra    = sizeof(VDVideoDisplayManager *);
+  wc.hInstance     = hInst;
+  wc.hIcon         = 0;
+  wc.hCursor       = 0;
+  wc.hbrBackground = 0;
+  wc.lpszMenuName  = 0;
 
-	char buf[64];
-	sprintf(buf, "VDVideoDisplayManager(%p)", this);
-	wc.lpszClassName	= buf;
+  char buf[64];
+  sprintf(buf, "VDVideoDisplayManager(%p)", this);
+  wc.lpszClassName = buf;
 
-	mWndClass = RegisterClass(&wc);
+  mWndClass = RegisterClass(&wc);
 
-	return mWndClass != NULL;
+  return mWndClass != NULL;
 }
 
-void VDVideoDisplayManager::UnregisterWindowClass() {
-	if (mWndClass) {
-		HMODULE hInst = VDGetLocalModuleHandleW32();
-		UnregisterClass((LPCTSTR)mWndClass, hInst);
-		mWndClass = NULL;
-	}
+void VDVideoDisplayManager::UnregisterWindowClass()
+{
+  if (mWndClass)
+  {
+    HMODULE hInst = VDGetLocalModuleHandleW32();
+    UnregisterClass((LPCTSTR)mWndClass, hInst);
+    mWndClass = NULL;
+  }
 }
 
-void VDVideoDisplayManager::RemapPalette() {
-	PALETTEENTRY pal[216];
-	struct {
-		LOGPALETTE hdr;
-		PALETTEENTRY palext[255];
-	} physpal;
+void VDVideoDisplayManager::RemapPalette()
+{
+  PALETTEENTRY pal[216];
+  struct
+  {
+    LOGPALETTE   hdr;
+    PALETTEENTRY palext[255];
+  } physpal;
 
-	physpal.hdr.palVersion = 0x0300;
-	physpal.hdr.palNumEntries = 256;
+  physpal.hdr.palVersion    = 0x0300;
+  physpal.hdr.palNumEntries = 256;
 
-	int i;
+  int i;
 
-	for(i=0; i<216; ++i) {
-		pal[i].peRed	= (BYTE)((i / 36) * 51);
-		pal[i].peGreen	= (BYTE)(((i%36) / 6) * 51);
-		pal[i].peBlue	= (BYTE)((i%6) * 51);
-	}
+  for (i = 0; i < 216; ++i)
+  {
+    pal[i].peRed   = (BYTE)((i / 36) * 51);
+    pal[i].peGreen = (BYTE)(((i % 36) / 6) * 51);
+    pal[i].peBlue  = (BYTE)((i % 6) * 51);
+  }
 
-	for(i=0; i<256; ++i) {
-		physpal.hdr.palPalEntry[i].peRed	= 0;
-		physpal.hdr.palPalEntry[i].peGreen	= 0;
-		physpal.hdr.palPalEntry[i].peBlue	= (BYTE)i;
-		physpal.hdr.palPalEntry[i].peFlags	= PC_EXPLICIT;
-	}
+  for (i = 0; i < 256; ++i)
+  {
+    physpal.hdr.palPalEntry[i].peRed   = 0;
+    physpal.hdr.palPalEntry[i].peGreen = 0;
+    physpal.hdr.palPalEntry[i].peBlue  = (BYTE)i;
+    physpal.hdr.palPalEntry[i].peFlags = PC_EXPLICIT;
+  }
 
-	if (HDC hdc = GetDC(0)) {
-		GetSystemPaletteEntries(hdc, 0, 256, physpal.hdr.palPalEntry);
-		ReleaseDC(0, hdc);
-	}
+  if (HDC hdc = GetDC(0))
+  {
+    GetSystemPaletteEntries(hdc, 0, 256, physpal.hdr.palPalEntry);
+    ReleaseDC(0, hdc);
+  }
 
-	if (HPALETTE hpal = CreatePalette(&physpal.hdr)) {
-		for(i=0; i<216; ++i) {
-			mLogicalPalette[i] = (uint8)GetNearestPaletteIndex(hpal, RGB(pal[i].peRed, pal[i].peGreen, pal[i].peBlue));
-		}
+  if (HPALETTE hpal = CreatePalette(&physpal.hdr))
+  {
+    for (i = 0; i < 216; ++i)
+    {
+      mLogicalPalette[i] = (uint8)GetNearestPaletteIndex(hpal, RGB(pal[i].peRed, pal[i].peGreen, pal[i].peBlue));
+    }
 
-		DeleteObject(hpal);
-	}
+    DeleteObject(hpal);
+  }
 }
 
-bool VDVideoDisplayManager::IsDisplayPaletted() {
-	bool bPaletted = false;
+bool VDVideoDisplayManager::IsDisplayPaletted()
+{
+  bool bPaletted = false;
 
-	if (HDC hdc = GetDC(0)) {
-		if (GetDeviceCaps(hdc, BITSPIXEL) <= 8)		// RC_PALETTE doesn't seem to be set if you switch to 8-bit in Win98 without rebooting.
-			bPaletted = true;
-		ReleaseDC(0, hdc);
-	}
+  if (HDC hdc = GetDC(0))
+  {
+    if (GetDeviceCaps(hdc, BITSPIXEL) <= 8) // RC_PALETTE doesn't seem to be set if you switch to 8-bit in Win98 without
+                                            // rebooting.
+      bPaletted = true;
+    ReleaseDC(0, hdc);
+  }
 
-	return bPaletted;
+  return bPaletted;
 }
 
-void VDVideoDisplayManager::CreateDitheringPalette() {
-	if (mhPalette)
-		return;
+void VDVideoDisplayManager::CreateDitheringPalette()
+{
+  if (mhPalette)
+    return;
 
-	struct {
-		LOGPALETTE hdr;
-		PALETTEENTRY palext[255];
-	} pal;
+  struct
+  {
+    LOGPALETTE   hdr;
+    PALETTEENTRY palext[255];
+  } pal;
 
-	pal.hdr.palVersion = 0x0300;
-	pal.hdr.palNumEntries = 216;
+  pal.hdr.palVersion    = 0x0300;
+  pal.hdr.palNumEntries = 216;
 
-	for(int i=0; i<216; ++i) {
-		pal.hdr.palPalEntry[i].peRed	= (BYTE)((i / 36) * 51);
-		pal.hdr.palPalEntry[i].peGreen	= (BYTE)(((i%36) / 6) * 51);
-		pal.hdr.palPalEntry[i].peBlue	= (BYTE)((i%6) * 51);
-		pal.hdr.palPalEntry[i].peFlags	= 0;
-	}
+  for (int i = 0; i < 216; ++i)
+  {
+    pal.hdr.palPalEntry[i].peRed   = (BYTE)((i / 36) * 51);
+    pal.hdr.palPalEntry[i].peGreen = (BYTE)(((i % 36) / 6) * 51);
+    pal.hdr.palPalEntry[i].peBlue  = (BYTE)((i % 6) * 51);
+    pal.hdr.palPalEntry[i].peFlags = 0;
+  }
 
-	mhPalette = CreatePalette(&pal.hdr);
+  mhPalette = CreatePalette(&pal.hdr);
 }
 
-void VDVideoDisplayManager::DestroyDitheringPalette() {
-	if (mhPalette) {
-		DeleteObject(mhPalette);
-		mhPalette = NULL;
-	}
+void VDVideoDisplayManager::DestroyDitheringPalette()
+{
+  if (mhPalette)
+  {
+    DeleteObject(mhPalette);
+    mhPalette = NULL;
+  }
 }
 
-void VDVideoDisplayManager::CheckForegroundState() {
-	bool appActive = true;
-	
-	if (mbBackgroundFallbackEnabled)
-		appActive = VDIsForegroundTaskW32();
+void VDVideoDisplayManager::CheckForegroundState()
+{
+  bool appActive = true;
 
-	if (mbAppActive != appActive) {
-		mbAppActive = appActive;
+  if (mbBackgroundFallbackEnabled)
+    appActive = VDIsForegroundTaskW32();
 
-		// Don't handle this synchronously in case we're handling a message in the minidriver!
-		PostMessage(mhwnd, WM_USER + 100, 0, 0);
-	}
+  if (mbAppActive != appActive)
+  {
+    mbAppActive = appActive;
+
+    // Don't handle this synchronously in case we're handling a message in the minidriver!
+    PostMessage(mhwnd, WM_USER + 100, 0, 0);
+  }
 }
 
-LRESULT CALLBACK VDVideoDisplayManager::StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	if (msg == WM_NCCREATE) {
-		const CREATESTRUCT& cs = *(const CREATESTRUCT *)lParam;
+LRESULT CALLBACK VDVideoDisplayManager::StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  if (msg == WM_NCCREATE)
+  {
+    const CREATESTRUCT &cs = *(const CREATESTRUCT *)lParam;
 
-		SetWindowLongPtr(hwnd, 0, (LONG_PTR)cs.lpCreateParams);
-	} else {
-		VDVideoDisplayManager *pThis = (VDVideoDisplayManager *)GetWindowLongPtr(hwnd, 0);
+    SetWindowLongPtr(hwnd, 0, (LONG_PTR)cs.lpCreateParams);
+  }
+  else
+  {
+    VDVideoDisplayManager *pThis = (VDVideoDisplayManager *)GetWindowLongPtr(hwnd, 0);
 
-		if (pThis)
-			return pThis->WndProc(hwnd, msg, wParam, lParam);
-	}
+    if (pThis)
+      return pThis->WndProc(hwnd, msg, wParam, lParam);
+  }
 
-	return DefWindowProc(hwnd, msg, wParam, lParam);
+  return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-LRESULT CALLBACK VDVideoDisplayManager::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	switch(msg) {
-		case WM_CREATE:
-			if (mbMultithreaded)
-				SetTimer(hwnd, kTimerID_ForegroundPoll, 500, NULL);
-			break;
+LRESULT CALLBACK VDVideoDisplayManager::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  switch (msg)
+  {
+    case WM_CREATE:
+      if (mbMultithreaded)
+        SetTimer(hwnd, kTimerID_ForegroundPoll, 500, NULL);
+      break;
 
-		case WM_ACTIVATEAPP:
-			CheckForegroundState();
-			break;
+    case WM_ACTIVATEAPP:
+      CheckForegroundState();
+      break;
 
-		case WM_TIMER:
-			switch(wParam) {
-			case kTimerID_ForegroundPoll:
-				CheckForegroundState();
-				break;
+    case WM_TIMER:
+      switch (wParam)
+      {
+        case kTimerID_ForegroundPoll:
+          CheckForegroundState();
+          break;
 
-			case kTimerID_Tick:
-				if (mOutstandingTicks.xchg(0))
-					DispatchTicks();
-				break;
-			}
-			break;
+        case kTimerID_Tick:
+          if (mOutstandingTicks.xchg(0))
+            DispatchTicks();
+          break;
+      }
+      break;
 
-		case WM_DISPLAYCHANGE:
-			{
-				bool bPaletted = IsDisplayPaletted();
+    case WM_DISPLAYCHANGE: {
+      bool bPaletted = IsDisplayPaletted();
 
-				if (bPaletted)
-					CreateDitheringPalette();
+      if (bPaletted)
+        CreateDitheringPalette();
 
-				for(Clients::iterator it(mClients.begin()), itEnd(mClients.end()); it!=itEnd; ++it) {
-					VDVideoDisplayClient *p = *it;
+      for (Clients::iterator it(mClients.begin()), itEnd(mClients.end()); it != itEnd; ++it)
+      {
+        VDVideoDisplayClient *p = *it;
 
-					if (!p->mbRequiresFullScreen)
-						p->OnDisplayChange();
-				}
+        if (!p->mbRequiresFullScreen)
+          p->OnDisplayChange();
+      }
 
-				if (!bPaletted)
-					DestroyDitheringPalette();
-			}
-			break;
+      if (!bPaletted)
+        DestroyDitheringPalette();
+    }
+    break;
 
-		// Yes, believe it or not, we still support palettes, even when DirectDraw is active.
-		// Why?  Very occasionally, people still have to run in 8-bit mode, and a program
-		// should still display something half-decent in that case.  Besides, it's kind of
-		// neat to be able to dither in safe mode.
-		case WM_PALETTECHANGED:
-			{
-				DWORD dwProcess;
+    // Yes, believe it or not, we still support palettes, even when DirectDraw is active.
+    // Why?  Very occasionally, people still have to run in 8-bit mode, and a program
+    // should still display something half-decent in that case.  Besides, it's kind of
+    // neat to be able to dither in safe mode.
+    case WM_PALETTECHANGED: {
+      DWORD dwProcess;
 
-				GetWindowThreadProcessId((HWND)wParam, &dwProcess);
+      GetWindowThreadProcessId((HWND)wParam, &dwProcess);
 
-				if (dwProcess != GetCurrentProcessId()) {
-					for(Clients::iterator it(mClients.begin()), itEnd(mClients.end()); it!=itEnd; ++it) {
-						VDVideoDisplayClient *p = *it;
+      if (dwProcess != GetCurrentProcessId())
+      {
+        for (Clients::iterator it(mClients.begin()), itEnd(mClients.end()); it != itEnd; ++it)
+        {
+          VDVideoDisplayClient *p = *it;
 
-						if (!p->mbRequiresFullScreen)
-							p->OnRealizePalette();
-					}
-				}
-			}
-			break;
+          if (!p->mbRequiresFullScreen)
+            p->OnRealizePalette();
+        }
+      }
+    }
+    break;
 
-		case WM_USER+100:
-			{
-				for(Clients::iterator it(mClients.begin()), itEnd(mClients.end()); it!=itEnd; ++it) {
-					VDVideoDisplayClient *p = *it;
+    case WM_USER + 100: {
+      for (Clients::iterator it(mClients.begin()), itEnd(mClients.end()); it != itEnd; ++it)
+      {
+        VDVideoDisplayClient *p = *it;
 
-					p->OnForegroundChange(mbAppActive);
-				}
-			}
-			break;
+        p->OnForegroundChange(mbAppActive);
+      }
+    }
+    break;
 
-		case WM_USER+101:
-			{
-				bool enabled = wParam != 0;
+    case WM_USER + 101: {
+      bool enabled = wParam != 0;
 
-				if (mbBackgroundFallbackEnabled != enabled) {
-					mbBackgroundFallbackEnabled = enabled;
+      if (mbBackgroundFallbackEnabled != enabled)
+      {
+        mbBackgroundFallbackEnabled = enabled;
 
-					CheckForegroundState();
-				}
-			}
-			break;
-	}
+        CheckForegroundState();
+      }
+    }
+    break;
+  }
 
-	return DefWindowProc(hwnd, msg, wParam, lParam);
+  return DefWindowProc(hwnd, msg, wParam, lParam);
 }
-

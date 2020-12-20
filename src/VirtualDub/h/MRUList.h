@@ -21,28 +21,29 @@
 #include <vector>
 #include <vd2/system/VDString.h>
 
-class MRUList {
+class MRUList
+{
 private:
-	std::vector<char>			mKey;
-	std::vector<VDStringW>		mFiles;
-	const char		*mpKeyName;
-	int		mMaxCount;
-	bool			mbDirty;
+  std::vector<char>      mKey;
+  std::vector<VDStringW> mFiles;
+  const char *           mpKeyName;
+  int                    mMaxCount;
+  bool                   mbDirty;
 
 public:
-	MRUList(int max_files, char *key);
-	~MRUList();
+  MRUList(int max_files, char *key);
+  ~MRUList();
 
-	VDStringW operator[](int i);
+  VDStringW operator[](int i);
 
-	void set_capacity(int max_files);
+  void set_capacity(int max_files);
 
-	void add(const wchar_t *file);
-	void move_to_top(int index);
-	void clear();
-	void clear_history();
-	void load();
-	void flush();
+  void add(const wchar_t *file);
+  void move_to_top(int index);
+  void clear();
+  void clear_history();
+  void load();
+  void flush();
 };
 
 #endif

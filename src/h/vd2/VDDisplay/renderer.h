@@ -7,34 +7,48 @@
 
 class VDDisplayImageView;
 
-class IVDDisplayRenderer {
+class IVDDisplayRenderer
+{
 public:
-	virtual void SetColorRGB(uint32 color) = 0;
-	virtual void FillRect(sint32 x, sint32 y, sint32 w, sint32 h) = 0;
-	virtual void Blt(sint32 x, sint32 y, VDDisplayImageView& imageView) = 0;
+  virtual void SetColorRGB(uint32 color)                              = 0;
+  virtual void FillRect(sint32 x, sint32 y, sint32 w, sint32 h)       = 0;
+  virtual void Blt(sint32 x, sint32 y, VDDisplayImageView &imageView) = 0;
 };
 
-class VDDisplayImageView {
+class VDDisplayImageView
+{
 public:
-	VDDisplayImageView();
-	~VDDisplayImageView();
+  VDDisplayImageView();
+  ~VDDisplayImageView();
 
-	bool IsDynamic() const { return mbDynamic; }
-	const VDPixmap& GetImage() const { return mPixmap; }
-	void SetImage(const VDPixmap& px, bool dynamic);
+  bool IsDynamic() const
+  {
+    return mbDynamic;
+  }
+  const VDPixmap &GetImage() const
+  {
+    return mPixmap;
+  }
+  void SetImage(const VDPixmap &px, bool dynamic);
 
-	void SetCachedImage(IVDRefUnknown *p);
-	IVDRefUnknown *GetCachedImage() const { return mpCachedImage; }
+  void           SetCachedImage(IVDRefUnknown *p);
+  IVDRefUnknown *GetCachedImage() const
+  {
+    return mpCachedImage;
+  }
 
-	uint32 GetUniquenessCounter() const { return mUniquenessCounter; }
+  uint32 GetUniquenessCounter() const
+  {
+    return mUniquenessCounter;
+  }
 
-	void Invalidate();
+  void Invalidate();
 
 protected:
-	vdrefptr<IVDRefUnknown> mpCachedImage;
-	uint32 mUniquenessCounter;
-	VDPixmap mPixmap;
-	bool mbDynamic;
+  vdrefptr<IVDRefUnknown> mpCachedImage;
+  uint32                  mUniquenessCounter;
+  VDPixmap                mPixmap;
+  bool                    mbDynamic;
 };
 
 #endif

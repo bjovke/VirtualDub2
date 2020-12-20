@@ -19,110 +19,124 @@
 #include "FilterFrameCache.h"
 #include "FilterFrame.h"
 
-VDFilterFrameCache::VDFilterFrameCache() {
+VDFilterFrameCache::VDFilterFrameCache() {}
+
+VDFilterFrameCache::~VDFilterFrameCache()
+{
+  Flush();
 }
 
-VDFilterFrameCache::~VDFilterFrameCache() {
-	Flush();
+void VDFilterFrameCache::Flush()
+{
+  InvalidateAllFrames();
+
+  while (!mFreeNodes.empty())
+  {
+    VDFilterFrameBufferCacheNode *node = static_cast<VDFilterFrameBufferCacheNode *>(mFreeNodes.back());
+    mFreeNodes.pop_back();
+
+    delete node;
+  }
 }
 
-void VDFilterFrameCache::Flush() {
-	InvalidateAllFrames();
+bool VDFilterFrameCache::Lookup(sint64 key, VDFilterFrameBuffer **buffer)
+{
+  int        htidx  = (unsigned)key % (kBufferHashTableSize - 1);
+  HashNodes &hblist = mHashTable[htidx];
 
-	while(!mFreeNodes.empty()) {
-		VDFilterFrameBufferCacheNode *node = static_cast<VDFilterFrameBufferCacheNode *>(mFreeNodes.back());
-		mFreeNodes.pop_back();
+  for (HashNodes::iterator it(hblist.begin()), itEnd(hblist.end()); it != itEnd; ++it)
+  {
+    VDFilterFrameBufferCacheHashNode *hnode = *it;
 
-		delete node;
-	}
+    if (hnode->mKey == key)
+    {
+      VDFilterFrameBuffer *         buf  = hnode->mpBuffer;
+      VDFilterFrameBufferCacheNode *node = static_cast<VDFilterFrameBufferCacheNode *>(hnode);
+
+      VDASSERT(node->mpCache == this);
+      VDASSERT(buf->GetCacheReference(this) == node);
+
+      buf->AddRef();
+      *buffer = buf;
+      return true;
+    }
+  }
+
+  return false;
 }
 
-bool VDFilterFrameCache::Lookup(sint64 key, VDFilterFrameBuffer **buffer) {
-	int htidx = (unsigned)key % (kBufferHashTableSize - 1);
-	HashNodes& hblist = mHashTable[htidx];
+void VDFilterFrameCache::Evict(VDFilterFrameBufferCacheLinkNode *cacheLink)
+{
+  VDASSERT(cacheLink->mpCache == this);
 
-	for(HashNodes::iterator it(hblist.begin()), itEnd(hblist.end()); it != itEnd; ++it) {
-		VDFilterFrameBufferCacheHashNode *hnode = *it;
+  VDFilterFrameBufferCacheNode *node = static_cast<VDFilterFrameBufferCacheNode *>(cacheLink);
+  node->mpBuffer->RemoveCacheReference(cacheLink);
 
-		if (hnode->mKey == key) {
-			VDFilterFrameBuffer *buf = hnode->mpBuffer;
-			VDFilterFrameBufferCacheNode *node = static_cast<VDFilterFrameBufferCacheNode *>(hnode);
+  VDFilterFrameBufferCacheHashNode *hnode = static_cast<VDFilterFrameBufferCacheHashNode *>(node);
+  HashNodes::unlink(*hnode);
+  hnode->mListNodePrev = NULL;
+  hnode->mListNodeNext = NULL;
+  hnode->mpBuffer      = NULL;
 
-			VDASSERT(node->mpCache == this);
-			VDASSERT(buf->GetCacheReference(this) == node);
-
-			buf->AddRef();
-			*buffer = buf;
-			return true;
-		}
-	}
-
-	return false;
+  mFreeNodes.push_back(node);
 }
 
-void VDFilterFrameCache::Evict(VDFilterFrameBufferCacheLinkNode *cacheLink) {
-	VDASSERT(cacheLink->mpCache == this);
+void VDFilterFrameCache::Add(VDFilterFrameBuffer *buf, sint64 key)
+{
+  VDFilterFrameBufferCacheNode *hnode = AllocateNode();
 
-	VDFilterFrameBufferCacheNode *node = static_cast<VDFilterFrameBufferCacheNode *>(cacheLink);
-	node->mpBuffer->RemoveCacheReference(cacheLink);
+  hnode->mKey     = key;
+  hnode->mpBuffer = buf;
 
-	VDFilterFrameBufferCacheHashNode *hnode = static_cast<VDFilterFrameBufferCacheHashNode *>(node);
-	HashNodes::unlink(*hnode);
-	hnode->mListNodePrev = NULL;
-	hnode->mListNodeNext = NULL;
-	hnode->mpBuffer = NULL;
+  int htidx = (unsigned)hnode->mKey % (kBufferHashTableSize - 1);
 
-	mFreeNodes.push_back(node);
+  mHashTable[htidx].push_back(hnode);
+  buf->AddCacheReference(hnode);
 }
 
-void VDFilterFrameCache::Add(VDFilterFrameBuffer *buf, sint64 key) {
-	VDFilterFrameBufferCacheNode *hnode = AllocateNode();
+void VDFilterFrameCache::Remove(VDFilterFrameBuffer *buf)
+{
+  VDFilterFrameBufferCacheNode *hnode = static_cast<VDFilterFrameBufferCacheNode *>(buf->GetCacheReference(this));
 
-	hnode->mKey = key;
-	hnode->mpBuffer = buf;
-
-	int htidx = (unsigned)hnode->mKey % (kBufferHashTableSize - 1);
-
-	mHashTable[htidx].push_back(hnode);
-	buf->AddCacheReference(hnode);
+  if (hnode)
+    Evict(hnode);
 }
 
-void VDFilterFrameCache::Remove(VDFilterFrameBuffer *buf) {
-	VDFilterFrameBufferCacheNode *hnode = static_cast<VDFilterFrameBufferCacheNode *>(buf->GetCacheReference(this));
+void VDFilterFrameCache::InvalidateAllFrames()
+{
+  for (int htidx = 0; htidx < kBufferHashTableSize; ++htidx)
+  {
+    HashNodes &hblist = mHashTable[htidx];
 
-	if (hnode)
-		Evict(hnode);
+    while (!hblist.empty())
+    {
+      VDFilterFrameBufferCacheNode *hnode = static_cast<VDFilterFrameBufferCacheNode *>(hblist.back());
+
+      Evict(hnode);
+    }
+  }
 }
 
-void VDFilterFrameCache::InvalidateAllFrames() {
-	for(int htidx = 0; htidx < kBufferHashTableSize; ++htidx) {
-		HashNodes& hblist = mHashTable[htidx];
+VDFilterFrameBufferCacheNode *VDFilterFrameCache::AllocateNode()
+{
+  if (mFreeNodes.empty())
+  {
+    VDFilterFrameBufferCacheNode *node = new VDFilterFrameBufferCacheNode;
+    node->mpCache                      = this;
+    return node;
+  }
 
-		while(!hblist.empty()) {
-			VDFilterFrameBufferCacheNode *hnode = static_cast<VDFilterFrameBufferCacheNode *>(hblist.back());
+  VDFilterFrameBufferCacheNode *node = static_cast<VDFilterFrameBufferCacheNode *>(mFreeNodes.front());
+  mFreeNodes.pop_front();
 
-			Evict(hnode);
-		}
-	}
+  VDASSERT(!node->mpBuffer);
+
+  return node;
 }
 
-VDFilterFrameBufferCacheNode *VDFilterFrameCache::AllocateNode() {
-	if (mFreeNodes.empty()) {
-		VDFilterFrameBufferCacheNode *node = new VDFilterFrameBufferCacheNode;
-		node->mpCache = this;
-		return node;
-	}
+void VDFilterFrameCache::FreeNode(VDFilterFrameBufferCacheNode *node)
+{
+  node->mpBuffer = NULL;
 
-	VDFilterFrameBufferCacheNode *node = static_cast<VDFilterFrameBufferCacheNode *>(mFreeNodes.front());
-	mFreeNodes.pop_front();
-
-	VDASSERT(!node->mpBuffer);
-
-	return node;
-}
-
-void VDFilterFrameCache::FreeNode(VDFilterFrameBufferCacheNode *node) {
-	node->mpBuffer = NULL;
-
-	mFreeNodes.push_front(node);
+  mFreeNodes.push_front(node);
 }

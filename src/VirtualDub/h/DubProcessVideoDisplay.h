@@ -19,7 +19,7 @@
 #define f_VD2_DUBPROCESSVIDEODISPLAY_H
 
 #ifdef _MSC_VER
-	#pragma once
+#pragma once
 #endif
 
 #include <vd2/system/atomic.h>
@@ -34,65 +34,72 @@ class DubOptions;
 class IVDVideoCompressor;
 class IVDVideoDecompressor;
 
-class VDDubVideoProcessorDisplay {
-	VDDubVideoProcessorDisplay(const VDDubVideoProcessorDisplay&);
-	VDDubVideoProcessorDisplay& operator=(const VDDubVideoProcessorDisplay&);
+class VDDubVideoProcessorDisplay
+{
+  VDDubVideoProcessorDisplay(const VDDubVideoProcessorDisplay &);
+  VDDubVideoProcessorDisplay &operator=(const VDDubVideoProcessorDisplay &);
+
 public:
-	VDDubVideoProcessorDisplay();
-	~VDDubVideoProcessorDisplay();
+  VDDubVideoProcessorDisplay();
+  ~VDDubVideoProcessorDisplay();
 
-	void SetThreadInfo(VDLoopThrottle *throttle);
-	void SetOptions(const DubOptions *opts);
-	void SetInputDisplay(IVDVideoDisplay *pVideoDisplay);
-	void SetOutputDisplay(IVDVideoDisplay *pVideoDisplay);
-	void SetBlitter(IVDAsyncBlitter *blitter);
-	void SetVideoCompressor(IVDVideoCompressor *pCompressor);
-	void SetVideoSource(IVDVideoSource *pVideo);
+  void SetThreadInfo(VDLoopThrottle *throttle);
+  void SetOptions(const DubOptions *opts);
+  void SetInputDisplay(IVDVideoDisplay *pVideoDisplay);
+  void SetOutputDisplay(IVDVideoDisplay *pVideoDisplay);
+  void SetBlitter(IVDAsyncBlitter *blitter);
+  void SetVideoCompressor(IVDVideoCompressor *pCompressor);
+  void SetVideoSource(IVDVideoSource *pVideo);
 
-	sint32 GetLatency() const;
-	uint32 GetDisplayClock() const;
-	void AdvanceFrame();
+  sint32 GetLatency() const;
+  uint32 GetDisplayClock() const;
+  void   AdvanceFrame();
 
-	bool TryLockInputChannel(sint32 timeout);
-	void UnlockInputChannel();
+  bool TryLockInputChannel(sint32 timeout);
+  void UnlockInputChannel();
 
-	bool TryRevokeOutputBuffer(VDRenderOutputBuffer **buffer);
+  bool TryRevokeOutputBuffer(VDRenderOutputBuffer **buffer);
 
-	void UnlockAndDisplay(bool forceDisplay, VDRenderOutputBuffer *pBuffer, bool outputValid);
+  void UnlockAndDisplay(bool forceDisplay, VDRenderOutputBuffer *pBuffer, bool outputValid);
 
-	void ScheduleUpdate();
-	void CheckForDecompressorSwitch();
-	void UpdateDecompressedVideo(const void *data, uint32 size, bool isKey);
+  void ScheduleUpdate();
+  void CheckForDecompressorSwitch();
+  void UpdateDecompressedVideo(const void *data, uint32 size, bool isKey);
 
 protected:
-	static bool AsyncReinitDisplayCallback(int pass, sint64 timelinePos, void *pThisAsVoid, void *, bool aborting);
-	static bool StaticAsyncUpdateInputCallback(int pass, sint64 timelinePos, void *pThisAsVoid, void*, bool aborting);
-	static bool StaticAsyncUpdateOutputCallback(int pass, sint64 timelinePos, void *pThisAsVoid, void *pBuffer, bool aborting);
-	bool AsyncUpdateInputCallback(int pass, VDPosition pos, bool aborting);
-	bool AsyncUpdateOutputCallback(int pass, VDPosition pos, VDRenderOutputBuffer *pBuffer, bool aborting);
+  static bool AsyncReinitDisplayCallback(int pass, sint64 timelinePos, void *pThisAsVoid, void *, bool aborting);
+  static bool StaticAsyncUpdateInputCallback(int pass, sint64 timelinePos, void *pThisAsVoid, void *, bool aborting);
+  static bool StaticAsyncUpdateOutputCallback(
+    int    pass,
+    sint64 timelinePos,
+    void * pThisAsVoid,
+    void * pBuffer,
+    bool   aborting);
+  bool AsyncUpdateInputCallback(int pass, VDPosition pos, bool aborting);
+  bool AsyncUpdateOutputCallback(int pass, VDPosition pos, VDRenderOutputBuffer *pBuffer, bool aborting);
 
-	const DubOptions	*mpOptions;
-	IVDVideoCompressor	*mpVideoCompressor;
-	VDLoopThrottle		*mpLoopThrottle;
-	bool				mbInputLocked;
+  const DubOptions *  mpOptions;
+  IVDVideoCompressor *mpVideoCompressor;
+  VDLoopThrottle *    mpLoopThrottle;
+  bool                mbInputLocked;
 
-	// DISPLAY
-	vdrefptr<IVDVideoSource>	mpVideoSource;
-	uint32				mFramesToDrop;
-	IVDAsyncBlitter		*mpBlitter;
-	IVDVideoDisplay		*mpInputDisplay;
-	IVDVideoDisplay		*mpOutputDisplay;
-	VDAtomicInt			mRefreshFlag;
+  // DISPLAY
+  vdrefptr<IVDVideoSource> mpVideoSource;
+  uint32                   mFramesToDrop;
+  IVDAsyncBlitter *        mpBlitter;
+  IVDVideoDisplay *        mpInputDisplay;
+  IVDVideoDisplay *        mpOutputDisplay;
+  VDAtomicInt              mRefreshFlag;
 
-	// DECOMPRESSION PREVIEW
-	vdautoptr<IVDVideoDecompressor>	mpVideoDecompressor;
-	bool				mbVideoDecompressorEnabled;
-	bool				mbVideoDecompressorPending;
-	bool				mbVideoDecompressorErrored;
-	VDPixmapBuffer		mVideoDecompBuffer;
+  // DECOMPRESSION PREVIEW
+  vdautoptr<IVDVideoDecompressor> mpVideoDecompressor;
+  bool                            mbVideoDecompressorEnabled;
+  bool                            mbVideoDecompressorPending;
+  bool                            mbVideoDecompressorErrored;
+  VDPixmapBuffer                  mVideoDecompBuffer;
 
 public:
-	IDubStatusHandler	*mpStatusHandler;
+  IDubStatusHandler *mpStatusHandler;
 };
 
-#endif	// f_VD2_DUBPROCESSVIDEODISPLAY_H
+#endif // f_VD2_DUBPROCESSVIDEODISPLAY_H

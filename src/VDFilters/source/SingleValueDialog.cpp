@@ -21,105 +21,136 @@
 #include <vd2/VDLib/Dialog.h>
 #include "resource.h"
 
-class VDUIDialogFilterSingleValue : public VDDialogFrameW32 {
+class VDUIDialogFilterSingleValue : public VDDialogFrameW32
+{
 public:
-	VDUIDialogFilterSingleValue(sint32 value, sint32 minValue, sint32 maxValue, IVDXFilterPreview2 *ifp2, const wchar_t *title, void (*cb)(long, void *), void *cbdata);
+  VDUIDialogFilterSingleValue(
+    sint32              value,
+    sint32              minValue,
+    sint32              maxValue,
+    IVDXFilterPreview2 *ifp2,
+    const wchar_t *     title,
+    void (*cb)(long, void *),
+    void *cbdata);
 
-	sint32 GetValue() const { return mValue; }
+  sint32 GetValue() const
+  {
+    return mValue;
+  }
 
 protected:
-	bool OnLoaded();
-	void OnDataExchange(bool write);
-	void OnHScroll(uint32 id, int code);
-	bool OnCommand(uint32 id, uint32 extcode);
+  bool OnLoaded();
+  void OnDataExchange(bool write);
+  void OnHScroll(uint32 id, int code);
+  bool OnCommand(uint32 id, uint32 extcode);
 
-	void UpdateSettingsString();
+  void UpdateSettingsString();
 
-	sint32 mValue;
-	sint32 mMinValue;
-	sint32 mMaxValue;
-	IVDXFilterPreview2 *mifp2;
+  sint32              mValue;
+  sint32              mMinValue;
+  sint32              mMaxValue;
+  IVDXFilterPreview2 *mifp2;
 
-	void (*mpUpdateFunction)(long value, void *data);
-	void *mpUpdateFunctionData;
+  void (*mpUpdateFunction)(long value, void *data);
+  void *mpUpdateFunctionData;
 
-	const wchar_t *mpTitle;
+  const wchar_t *mpTitle;
 };
 
-VDUIDialogFilterSingleValue::VDUIDialogFilterSingleValue(sint32 value, sint32 minValue, sint32 maxValue, IVDXFilterPreview2 *ifp2, const wchar_t *title, void (*cb)(long, void *), void *cbdata)
-	: VDDialogFrameW32(IDD_FILTER_SINGVAR)
-	, mValue(value)
-	, mMinValue(minValue)
-	, mMaxValue(maxValue)
-	, mifp2(ifp2)
-	, mpUpdateFunction(cb)
-	, mpUpdateFunctionData(cbdata)
-	, mpTitle(title)
+VDUIDialogFilterSingleValue::VDUIDialogFilterSingleValue(
+  sint32              value,
+  sint32              minValue,
+  sint32              maxValue,
+  IVDXFilterPreview2 *ifp2,
+  const wchar_t *     title,
+  void (*cb)(long, void *),
+  void *cbdata)
+  : VDDialogFrameW32(IDD_FILTER_SINGVAR), mValue(value), mMinValue(minValue), mMaxValue(maxValue), mifp2(ifp2),
+    mpUpdateFunction(cb), mpUpdateFunctionData(cbdata), mpTitle(title)
+{}
+
+bool VDUIDialogFilterSingleValue::OnLoaded()
 {
+  TBSetRange(IDC_SLIDER, mMinValue, mMaxValue);
+  UpdateSettingsString();
+
+  if (mifp2)
+  {
+    VDZHWND hwndPreviewButton = GetControl(IDC_PREVIEW);
+
+    if (hwndPreviewButton)
+      mifp2->InitButton((VDXHWND)hwndPreviewButton);
+  }
+
+  return VDDialogFrameW32::OnLoaded();
 }
 
-bool VDUIDialogFilterSingleValue::OnLoaded() {
-	TBSetRange(IDC_SLIDER, mMinValue, mMaxValue);
-	UpdateSettingsString();
-
-	if (mifp2) {
-		VDZHWND hwndPreviewButton = GetControl(IDC_PREVIEW);
-
-		if (hwndPreviewButton)
-			mifp2->InitButton((VDXHWND)hwndPreviewButton);
-	}
-
-	return VDDialogFrameW32::OnLoaded();
+void VDUIDialogFilterSingleValue::OnDataExchange(bool write)
+{
+  if (!write)
+    TBSetValue(IDC_SLIDER, mValue);
 }
 
-void VDUIDialogFilterSingleValue::OnDataExchange(bool write) {
-	if (!write)
-		TBSetValue(IDC_SLIDER, mValue);
+void VDUIDialogFilterSingleValue::OnHScroll(uint32 id, int code)
+{
+  if (id == IDC_SLIDER)
+  {
+    int v = TBGetValue(id);
+
+    if (v != mValue)
+    {
+      mValue = v;
+
+      UpdateSettingsString();
+
+      if (mpUpdateFunction)
+        mpUpdateFunction(mValue, mpUpdateFunctionData);
+
+      if (mifp2)
+        mifp2->RedoFrame();
+    }
+  }
 }
 
-void VDUIDialogFilterSingleValue::OnHScroll(uint32 id, int code) {
-	if (id == IDC_SLIDER) {
-		int v = TBGetValue(id);
+bool VDUIDialogFilterSingleValue::OnCommand(uint32 id, uint32 extcode)
+{
+  if (id == IDC_PREVIEW)
+  {
+    if (mifp2)
+      mifp2->Toggle((VDXHWND)mhdlg);
+    return true;
+  }
 
-		if (v != mValue) {
-			mValue = v;
-
-			UpdateSettingsString();
-
-			if (mpUpdateFunction)
-				mpUpdateFunction(mValue, mpUpdateFunctionData);
-
-			if (mifp2)
-				mifp2->RedoFrame();
-		}
-	}
+  return false;
 }
 
-bool VDUIDialogFilterSingleValue::OnCommand(uint32 id, uint32 extcode) {
-	if (id == IDC_PREVIEW) {
-		if (mifp2)
-			mifp2->Toggle((VDXHWND)mhdlg);
-		return true;
-	}
-
-	return false;
+void VDUIDialogFilterSingleValue::UpdateSettingsString()
+{
+  SetControlTextF(IDC_SETTING, L"%d", mValue);
 }
 
-void VDUIDialogFilterSingleValue::UpdateSettingsString() {
-	SetControlTextF(IDC_SETTING, L"%d", mValue);
-}
+bool VDFilterGetSingleValue(
+  VDXHWND             hWnd,
+  sint32              cVal,
+  sint32 *            result,
+  sint32              lMin,
+  sint32              lMax,
+  const char *        title,
+  IVDXFilterPreview2 *ifp2,
+  void (*pUpdateFunction)(long value, void *data),
+  void *pUpdateFunctionData)
+{
+  VDStringW tbuf;
+  tbuf.sprintf(L"Filter: %hs", title);
 
-bool VDFilterGetSingleValue(VDXHWND hWnd, sint32 cVal, sint32 *result, sint32 lMin, sint32 lMax, const char *title, IVDXFilterPreview2 *ifp2, void (*pUpdateFunction)(long value, void *data), void *pUpdateFunctionData) {
-	VDStringW tbuf;
-	tbuf.sprintf(L"Filter: %hs", title);
+  VDUIDialogFilterSingleValue dlg(cVal, lMin, lMax, ifp2, tbuf.c_str(), pUpdateFunction, pUpdateFunctionData);
 
-	VDUIDialogFilterSingleValue dlg(cVal, lMin, lMax, ifp2, tbuf.c_str(), pUpdateFunction, pUpdateFunctionData);
+  if (dlg.ShowDialog((VDGUIHandle)hWnd))
+  {
+    *result = dlg.GetValue();
+    return true;
+  }
 
-	if (dlg.ShowDialog((VDGUIHandle)hWnd)) {
-		*result = dlg.GetValue();
-		return true;
-	}
-
-	*result = cVal;
-	return false;
+  *result = cVal;
+  return false;
 }

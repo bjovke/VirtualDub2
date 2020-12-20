@@ -44,13 +44,25 @@ struct VDXFilterDefinition2;
 /// Video filters declared this way are automatically registered by the module init
 /// routine.
 ///
-#define VDX_DECLARE_VIDEOFILTERS_BEGIN()		VDXFilterDefinition2 *VDXGetVideoFilterDefinition(int index) {
-#define VDX_DECLARE_VIDEOFILTER(defVarName)			if (!index--) { extern VDXFilterDefinition2 defVarName; return &defVarName; }
-#define VDX_DECLARE_VIDEOFILTERS_END()				return NULL;	\
-												}
+#define VDX_DECLARE_VIDEOFILTERS_BEGIN()                       \
+  VDXFilterDefinition2 *VDXGetVideoFilterDefinition(int index) \
+  {
+#define VDX_DECLARE_VIDEOFILTER(defVarName) \
+  if (!index--)                             \
+  {                                         \
+    extern VDXFilterDefinition2 defVarName; \
+    return &defVarName;                     \
+  }
+#define VDX_DECLARE_VIDEOFILTERS_END() \
+  return NULL;                         \
+  }
 #define VDX_DECLARE_VFMODULE()
 
 int VDXVideoFilterModuleInit2(struct VDXFilterModule *fm, const VDXFilterFunctions *ff, int vdfd_ver);
-int VDXVideoFilterModuleInitFilterMod(struct VDXFilterModule *fm, const FilterModInitFunctions *ff, int vdfd_ver, int mod_ver);
+int VDXVideoFilterModuleInitFilterMod(
+  struct VDXFilterModule *      fm,
+  const FilterModInitFunctions *ff,
+  int                           vdfd_ver,
+  int                           mod_ver);
 
 #endif

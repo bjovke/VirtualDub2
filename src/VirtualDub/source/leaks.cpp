@@ -25,335 +25,410 @@
 
 // must match CRT internal format -- using different name to avoid
 // symbol conflicts
-namespace {
-	struct CrtBlockHeader {
-		CrtBlockHeader *pNext, *pPrev;
-		const char *pFilename;
-		int			line;
+namespace
+{
+struct CrtBlockHeader
+{
+  CrtBlockHeader *pNext, *pPrev;
+  const char *    pFilename;
+  int             line;
 #ifdef VD_CPU_AMD64
-		int			type;
-		size_t		size;
+  int    type;
+  size_t size;
 #else
-		size_t		size;
-		int			type;
+  size_t size;
+  int    type;
 #endif
-		unsigned	reqnum;
-		char		redzone_head[4];
-		char		data[1];
-	};
-}
+  unsigned reqnum;
+  char     redzone_head[4];
+  char     data[1];
+};
+} // namespace
 
-struct VDDbgHelpDynamicLoaderW32 {
+struct VDDbgHelpDynamicLoaderW32
+{
 public:
-	BOOL (APIENTRY *pSymInitialize)(HANDLE hProcess, PSTR UserSearchPath, BOOL fInvadeProcess);
-	BOOL (APIENTRY *pSymCleanup)(HANDLE hProcess);
-	BOOL (APIENTRY *pSymSetSearchPath)(HANDLE hProcess, PSTR SearchPath);
-	BOOL (APIENTRY *pSymLoadModule)(HANDLE hProcess, HANDLE hFile, PSTR ImageFile, PSTR ModuleName, DWORD BaseOfDll, DWORD SizeOfDll);
-	BOOL (APIENTRY *pSymGetSymFromAddr)(HANDLE hProcess, DWORD Address, PDWORD Displacement, PIMAGEHLP_SYMBOL Symbol);
-	BOOL (APIENTRY *pSymGetModuleInfo)(HANDLE hProcess, DWORD dwAddr, PIMAGEHLP_MODULE ModuleInfo);
-	BOOL (APIENTRY *pUnDecorateSymbolName)(PCSTR DecoratedName, PSTR UnDecoratedName, DWORD UndecoratedLength, DWORD Flags);
+  BOOL(APIENTRY *pSymInitialize)(HANDLE hProcess, PSTR UserSearchPath, BOOL fInvadeProcess);
+  BOOL(APIENTRY *pSymCleanup)(HANDLE hProcess);
+  BOOL(APIENTRY *pSymSetSearchPath)(HANDLE hProcess, PSTR SearchPath);
+  BOOL(APIENTRY *pSymLoadModule)
+  (HANDLE hProcess, HANDLE hFile, PSTR ImageFile, PSTR ModuleName, DWORD BaseOfDll, DWORD SizeOfDll);
+  BOOL(APIENTRY *pSymGetSymFromAddr)(HANDLE hProcess, DWORD Address, PDWORD Displacement, PIMAGEHLP_SYMBOL Symbol);
+  BOOL(APIENTRY *pSymGetModuleInfo)(HANDLE hProcess, DWORD dwAddr, PIMAGEHLP_MODULE ModuleInfo);
+  BOOL(APIENTRY *pUnDecorateSymbolName)
+  (PCSTR DecoratedName, PSTR UnDecoratedName, DWORD UndecoratedLength, DWORD Flags);
 
-	HMODULE hmodDbgHelp;
+  HMODULE hmodDbgHelp;
 
-	VDDbgHelpDynamicLoaderW32();
-	~VDDbgHelpDynamicLoaderW32();
+  VDDbgHelpDynamicLoaderW32();
+  ~VDDbgHelpDynamicLoaderW32();
 
-	bool ready() const { return hmodDbgHelp != 0; }
+  bool ready() const
+  {
+    return hmodDbgHelp != 0;
+  }
 };
 
 VDDbgHelpDynamicLoaderW32::VDDbgHelpDynamicLoaderW32()
 {
-	// XP DbgHelp doesn't pick up some VC8 symbols -- need DbgHelp 6.2+ for that
-	hmodDbgHelp = LoadLibrary("c:\\program files\\debugging tools for windows\\dbghelp");
-	if (!hmodDbgHelp) {
-		hmodDbgHelp = LoadLibrary("c:\\program files (x86)\\debugging tools for windows\\dbghelp");
+  // XP DbgHelp doesn't pick up some VC8 symbols -- need DbgHelp 6.2+ for that
+  hmodDbgHelp = LoadLibrary("c:\\program files\\debugging tools for windows\\dbghelp");
+  if (!hmodDbgHelp)
+  {
+    hmodDbgHelp = LoadLibrary("c:\\program files (x86)\\debugging tools for windows\\dbghelp");
 
-		if (!hmodDbgHelp)
-			hmodDbgHelp = LoadLibrary("dbghelp");
-	}
+    if (!hmodDbgHelp)
+      hmodDbgHelp = LoadLibrary("dbghelp");
+  }
 
-	static const char *const sFuncTbl[]={
-		"SymInitialize",
-		"SymCleanup",
-		"SymSetSearchPath",
-		"SymLoadModule",
-		"SymGetSymFromAddr",
-		"SymGetModuleInfo",
-		"UnDecorateSymbolName",
-	};
-	enum { kFuncs = sizeof(sFuncTbl)/sizeof(sFuncTbl[0]) };
+  static const char *const sFuncTbl[] = {
+    "SymInitialize",
+    "SymCleanup",
+    "SymSetSearchPath",
+    "SymLoadModule",
+    "SymGetSymFromAddr",
+    "SymGetModuleInfo",
+    "UnDecorateSymbolName",
+  };
+  enum
+  {
+    kFuncs = sizeof(sFuncTbl) / sizeof(sFuncTbl[0])
+  };
 
-	if (hmodDbgHelp) {
-		int i;
-		for(i=0; i<kFuncs; ++i) {
-			FARPROC fp = GetProcAddress(hmodDbgHelp, sFuncTbl[i]);
+  if (hmodDbgHelp)
+  {
+    int i;
+    for (i = 0; i < kFuncs; ++i)
+    {
+      FARPROC fp = GetProcAddress(hmodDbgHelp, sFuncTbl[i]);
 
-			if (!fp)
-				break;
+      if (!fp)
+        break;
 
-			((FARPROC *)this)[i] = fp;
-		}
+      ((FARPROC *)this)[i] = fp;
+    }
 
-		if (i >= kFuncs)
-			return;
+    if (i >= kFuncs)
+      return;
 
-		FreeModule(hmodDbgHelp);
-		hmodDbgHelp = 0;
-	}
+    FreeModule(hmodDbgHelp);
+    hmodDbgHelp = 0;
+  }
 
-	for(int j=0; j<kFuncs; ++j)
-		((FARPROC *)this)[j] = 0;
+  for (int j = 0; j < kFuncs; ++j)
+    ((FARPROC *)this)[j] = 0;
 }
 
-VDDbgHelpDynamicLoaderW32::~VDDbgHelpDynamicLoaderW32() {
-	if (hmodDbgHelp) {
-		FreeModule(hmodDbgHelp);
-		hmodDbgHelp = 0;
-	}
+VDDbgHelpDynamicLoaderW32::~VDDbgHelpDynamicLoaderW32()
+{
+  if (hmodDbgHelp)
+  {
+    FreeModule(hmodDbgHelp);
+    hmodDbgHelp = 0;
+  }
 }
 
-namespace {
-	template<class T>
-	class heapvector {
-	public:
-		typedef	T *					pointer_type;
-		typedef	const T *			const_pointer_type;
-		typedef T&					reference_type;
-		typedef const T&			const_reference_type;
-		typedef pointer_type		iterator;
-		typedef	const_pointer_type	const_iterator;
-		typedef size_t				size_type;
-		typedef	ptrdiff_t			difference_type;
+namespace
+{
+template<class T> class heapvector
+{
+public:
+  typedef T *                pointer_type;
+  typedef const T *          const_pointer_type;
+  typedef T &                reference_type;
+  typedef const T &          const_reference_type;
+  typedef pointer_type       iterator;
+  typedef const_pointer_type const_iterator;
+  typedef size_t             size_type;
+  typedef ptrdiff_t          difference_type;
 
-		heapvector() : pStart(0), pEnd(0), pEndAlloc(0) {}
-		~heapvector() {
-			if (pStart)
-				HeapFree(GetProcessHeap(), 0, pStart);
-		}
+  heapvector() : pStart(0), pEnd(0), pEndAlloc(0) {}
+  ~heapvector()
+  {
+    if (pStart)
+      HeapFree(GetProcessHeap(), 0, pStart);
+  }
 
-		iterator begin() { return pStart; }
-		const_iterator begin() const { return pStart; }
-		iterator end() { return pEnd; }
-		const_iterator end() const { return pEnd; }
+  iterator begin()
+  {
+    return pStart;
+  }
+  const_iterator begin() const
+  {
+    return pStart;
+  }
+  iterator end()
+  {
+    return pEnd;
+  }
+  const_iterator end() const
+  {
+    return pEnd;
+  }
 
-		reference_type operator[](size_type i) { return pStart[i]; }
-		const_reference_type operator[](size_type i) const { return pStart[i]; }
+  reference_type operator[](size_type i)
+  {
+    return pStart[i];
+  }
+  const_reference_type operator[](size_type i) const
+  {
+    return pStart[i];
+  }
 
-		bool empty() const { return pEnd == pStart; }
-		size_type size() const { return pEnd-pStart; }
-		size_type capacity() const { return pEndAlloc-pStart; }
+  bool empty() const
+  {
+    return pEnd == pStart;
+  }
+  size_type size() const
+  {
+    return pEnd - pStart;
+  }
+  size_type capacity() const
+  {
+    return pEndAlloc - pStart;
+  }
 
-		void resize(size_type s) {
-			if (capacity() < s)
-				reserve(std::min<size_type>(size()*2, s));
+  void resize(size_type s)
+  {
+    if (capacity() < s)
+      reserve(std::min<size_type>(size() * 2, s));
 
-			pEnd = pStart + s;
-		}
+    pEnd = pStart + s;
+  }
 
-		void reserve(size_type s) {
-			if (s > capacity()) {
-				HANDLE h = GetProcessHeap();
-				size_type siz = size();
-				T *pNewBlock = (T*)HeapAlloc(h, 0, s * sizeof(T));
+  void reserve(size_type s)
+  {
+    if (s > capacity())
+    {
+      HANDLE    h         = GetProcessHeap();
+      size_type siz       = size();
+      T *       pNewBlock = (T *)HeapAlloc(h, 0, s * sizeof(T));
 
-				if (pStart) {
-					memcpy(pNewBlock, pStart, (char *)pEnd - (char *)pStart);
-					HeapFree(h, 0, pStart);
-				}
+      if (pStart)
+      {
+        memcpy(pNewBlock, pStart, (char *)pEnd - (char *)pStart);
+        HeapFree(h, 0, pStart);
+      }
 
-				pStart = pNewBlock;
-				pEnd = pStart + siz;
-				pEndAlloc = pStart + s;
-			}
-		}
-			
-		void push_back(const T& x) {
-			if (pEnd == pEndAlloc)
-				reserve(pEndAlloc==pStart ? 16 : size()*2);
+      pStart    = pNewBlock;
+      pEnd      = pStart + siz;
+      pEndAlloc = pStart + s;
+    }
+  }
 
-			*pEnd++ = x;
-		}
+  void push_back(const T &x)
+  {
+    if (pEnd == pEndAlloc)
+      reserve(pEndAlloc == pStart ? 16 : size() * 2);
 
-	protected:
-		T *pStart, *pEnd, *pEndAlloc;
+    *pEnd++ = x;
+  }
 
-		union trivial_check { T x; };
-	};
+protected:
+  T *pStart, *pEnd, *pEndAlloc;
 
-	struct BlockInfo {
-		const CrtBlockHeader *pBlock;
-		bool marked;
-	};
+  union trivial_check
+  {
+    T x;
+  };
+};
 
-	bool operator<(const BlockInfo& x, const BlockInfo& y) {
-		return (uintptr)x.pBlock < (uintptr)y.pBlock;
-	}
+struct BlockInfo
+{
+  const CrtBlockHeader *pBlock;
+  bool                  marked;
+};
 
-	bool operator<(uintptr x, const BlockInfo& y) {
-		return x < (uintptr)y.pBlock;
-	}
-
-	bool operator<(const BlockInfo& x, uintptr y) {
-		return (uintptr)x.pBlock < y;
-	}
+bool operator<(const BlockInfo &x, const BlockInfo &y)
+{
+  return (uintptr)x.pBlock < (uintptr)y.pBlock;
 }
 
-void VDDumpMemoryLeaksVC() {
-    _CrtMemState msNow;
+bool operator<(uintptr x, const BlockInfo &y)
+{
+  return x < (uintptr)y.pBlock;
+}
 
-	// disable CRT tracking of memory blocks
-	_CrtSetDbgFlag(_CrtSetDbgFlag(0) & ~_CRTDBG_ALLOC_MEM_DF);
+bool operator<(const BlockInfo &x, uintptr y)
+{
+  return (uintptr)x.pBlock < y;
+}
+} // namespace
 
-	VDDbgHelpDynamicLoaderW32 dbghelp;
+void VDDumpMemoryLeaksVC()
+{
+  _CrtMemState msNow;
 
-	if (!dbghelp.ready()) {
-		_CrtDumpMemoryLeaks();
-		return;
-	}
+  // disable CRT tracking of memory blocks
+  _CrtSetDbgFlag(_CrtSetDbgFlag(0) & ~_CRTDBG_ALLOC_MEM_DF);
 
-	HANDLE hProc = GetCurrentProcess();
+  VDDbgHelpDynamicLoaderW32 dbghelp;
 
-	dbghelp.pSymInitialize(hProc, NULL, FALSE);
+  if (!dbghelp.ready())
+  {
+    _CrtDumpMemoryLeaks();
+    return;
+  }
 
-	char filename[MAX_PATH], path[MAX_PATH];
-	GetModuleFileName(NULL, filename, sizeof filename);
+  HANDLE hProc = GetCurrentProcess();
 
-	strcpy(path, filename);
-	*VDFileSplitPath(path) = 0;
+  dbghelp.pSymInitialize(hProc, NULL, FALSE);
 
-	dbghelp.pSymSetSearchPath(hProc, path);
-	SetCurrentDirectory(path);
-	DWORD dwAddr = dbghelp.pSymLoadModule(hProc, NULL, filename, NULL, 0, 0);
+  char filename[MAX_PATH], path[MAX_PATH];
+  GetModuleFileName(NULL, filename, sizeof filename);
 
-	IMAGEHLP_MODULE modinfo = {sizeof(IMAGEHLP_MODULE)};
+  strcpy(path, filename);
+  *VDFileSplitPath(path) = 0;
 
-	dbghelp.pSymGetModuleInfo(hProc, dwAddr, &modinfo);
+  dbghelp.pSymSetSearchPath(hProc, path);
+  SetCurrentDirectory(path);
+  DWORD dwAddr = dbghelp.pSymLoadModule(hProc, NULL, filename, NULL, 0, 0);
 
-	// checkpoint the current memory layout
-    _CrtMemCheckpoint(&msNow);
+  IMAGEHLP_MODULE modinfo = {sizeof(IMAGEHLP_MODULE)};
 
-	// traverse memory
+  dbghelp.pSymGetModuleInfo(hProc, dwAddr, &modinfo);
 
-	typedef heapvector<BlockInfo> tHeapInfo;
-	tHeapInfo heapinfo;
+  // checkpoint the current memory layout
+  _CrtMemCheckpoint(&msNow);
 
-	const CrtBlockHeader *pHdr = (const CrtBlockHeader *)msNow.pBlockHeader;
-	for(; pHdr; pHdr = pHdr->pNext) {
-		const int type = (pHdr->type & 0xffff);
+  // traverse memory
 
-		if (type != _CLIENT_BLOCK && type != _NORMAL_BLOCK)
-			continue;
+  typedef heapvector<BlockInfo> tHeapInfo;
+  tHeapInfo                     heapinfo;
 
-		BlockInfo info = {
-			pHdr,
-			false
-		};
+  const CrtBlockHeader *pHdr = (const CrtBlockHeader *)msNow.pBlockHeader;
+  for (; pHdr; pHdr = pHdr->pNext)
+  {
+    const int type = (pHdr->type & 0xffff);
 
-		heapinfo.push_back(info);
-	}
+    if (type != _CLIENT_BLOCK && type != _NORMAL_BLOCK)
+      continue;
 
-	if (!heapinfo.empty()) {
-		_RPT0(0, "\n\n===== MEMORY LEAKS DETECTED =====\n\n");
+    BlockInfo info = {pHdr, false};
 
-		std::sort(heapinfo.begin(), heapinfo.end());
+    heapinfo.push_back(info);
+  }
 
-		tHeapInfo::iterator itBase(heapinfo.begin());
-		for(tHeapInfo::iterator it(itBase), itEnd(heapinfo.end()); it!=itEnd; ++it) {
-			BlockInfo& blk = *it;
-			size_t pointers = blk.pBlock->size / sizeof(void *);
-			uintptr *pp = (uintptr *)blk.pBlock->data;
+  if (!heapinfo.empty())
+  {
+    _RPT0(0, "\n\n===== MEMORY LEAKS DETECTED =====\n\n");
 
-			for(size_t i=0; i<pointers; ++i) {
-				uintptr ip = pp[i];
+    std::sort(heapinfo.begin(), heapinfo.end());
 
-				tHeapInfo::iterator itTarget(std::upper_bound(itBase, itEnd, ip));
+    tHeapInfo::iterator itBase(heapinfo.begin());
+    for (tHeapInfo::iterator it(itBase), itEnd(heapinfo.end()); it != itEnd; ++it)
+    {
+      BlockInfo &blk      = *it;
+      size_t     pointers = blk.pBlock->size / sizeof(void *);
+      uintptr *  pp       = (uintptr *)blk.pBlock->data;
 
-				if (itTarget != itBase) {
-					BlockInfo& blk2 = *--itTarget;
+      for (size_t i = 0; i < pointers; ++i)
+      {
+        uintptr ip = pp[i];
 
-					if (ip - (uintptr)blk2.pBlock->data < blk2.pBlock->size)
-						blk2.marked = true;
-				}
-			}
-		}
+        tHeapInfo::iterator itTarget(std::upper_bound(itBase, itEnd, ip));
 
-		for(int pass=0; pass<2; ++pass) {
-			bool test = pass ? true : false;
+        if (itTarget != itBase)
+        {
+          BlockInfo &blk2 = *--itTarget;
 
-			if (test) {
-				_RPT0(0, "\nSecondary leaks:\n\n");
-			} else {
-				_RPT0(0, "\nPrimary leaks:\n\n");
-			}
+          if (ip - (uintptr)blk2.pBlock->data < blk2.pBlock->size)
+            blk2.marked = true;
+        }
+      }
+    }
 
-			for(tHeapInfo::iterator it(heapinfo.begin()), itEnd(heapinfo.end()); it!=itEnd; ++it) {
-				BlockInfo& blk = *it;
+    for (int pass = 0; pass < 2; ++pass)
+    {
+      bool test = pass ? true : false;
 
-				if (blk.marked != test)
-					continue;
+      if (test)
+      {
+        _RPT0(0, "\nSecondary leaks:\n\n");
+      }
+      else
+      {
+        _RPT0(0, "\nPrimary leaks:\n\n");
+      }
 
-				pHdr = blk.pBlock;
+      for (tHeapInfo::iterator it(heapinfo.begin()), itEnd(heapinfo.end()); it != itEnd; ++it)
+      {
+        BlockInfo &blk = *it;
 
-				char buf[1024], *s = buf;
+        if (blk.marked != test)
+          continue;
 
-				s += wsprintf(buf, "    #%-5d %p (%8ld bytes)", pHdr->reqnum, pHdr->data, (long)pHdr->size);
+        pHdr = blk.pBlock;
 
-				if (pHdr->pFilename && !strcmp(pHdr->pFilename, "stack trace")) {
+        char buf[1024], *s = buf;
+
+        s += wsprintf(buf, "    #%-5d %p (%8ld bytes)", pHdr->reqnum, pHdr->data, (long)pHdr->size);
+
+        if (pHdr->pFilename && !strcmp(pHdr->pFilename, "stack trace"))
+        {
 #ifdef VD_CPU_AMD64
-					void *pRet = (void *)((size_t)pHdr->line + (size_t)&__ImageBase);
+          void *pRet = (void *)((size_t)pHdr->line + (size_t)&__ImageBase);
 #else
-					void *pRet = (void *)pHdr->line;
+          void *pRet = (void *)pHdr->line;
 #endif
 
-					struct {
-						IMAGEHLP_SYMBOL hdr;
-						CHAR nameext[511];
-					} sym;
+          struct
+          {
+            IMAGEHLP_SYMBOL hdr;
+            CHAR            nameext[511];
+          } sym;
 
-					sym.hdr.SizeOfStruct = sizeof(IMAGEHLP_SYMBOL);
-					sym.hdr.MaxNameLength = 512;
+          sym.hdr.SizeOfStruct  = sizeof(IMAGEHLP_SYMBOL);
+          sym.hdr.MaxNameLength = 512;
 
-					if (dbghelp.pSymGetSymFromAddr(hProc, (DWORD)pRet, 0, &sym.hdr)) {
-						s += wsprintf(s, "  Allocator: %p [%s]", pRet, sym.hdr.Name);
-					} else
-						s += wsprintf(s, "  Allocator: %p", pRet);
-				}
+          if (dbghelp.pSymGetSymFromAddr(hProc, (DWORD)pRet, 0, &sym.hdr))
+          {
+            s += wsprintf(s, "  Allocator: %p [%s]", pRet, sym.hdr.Name);
+          }
+          else
+            s += wsprintf(s, "  Allocator: %p", pRet);
+        }
 
-				if (pHdr->size >= sizeof(void *)) {
-					void *vtbl = *(void **)pHdr->data;
+        if (pHdr->size >= sizeof(void *))
+        {
+          void *vtbl = *(void **)pHdr->data;
 
-					if (vtbl >= (char *)modinfo.BaseOfImage && vtbl < (char *)modinfo.BaseOfImage + modinfo.ImageSize) {
-						struct {
-							IMAGEHLP_SYMBOL hdr;
-							CHAR nameext[511];
-						} sym;
+          if (vtbl >= (char *)modinfo.BaseOfImage && vtbl < (char *)modinfo.BaseOfImage + modinfo.ImageSize)
+          {
+            struct
+            {
+              IMAGEHLP_SYMBOL hdr;
+              CHAR            nameext[511];
+            } sym;
 
-						sym.hdr.SizeOfStruct = sizeof(IMAGEHLP_SYMBOL);
-						sym.hdr.MaxNameLength = 512;
+            sym.hdr.SizeOfStruct  = sizeof(IMAGEHLP_SYMBOL);
+            sym.hdr.MaxNameLength = 512;
 
-						char *t;
+            char *t;
 
-						if (dbghelp.pSymGetSymFromAddr(hProc, (DWORD)vtbl, 0, &sym.hdr) && (t = strstr(sym.hdr.Name, "::`vftable'"))) {
-							*t = 0;
-							s += wsprintf(s, " [Type: %s]", sym.hdr.Name);
-						}
-					}
-				}
+            if (
+              dbghelp.pSymGetSymFromAddr(hProc, (DWORD)vtbl, 0, &sym.hdr) && (t = strstr(sym.hdr.Name, "::`vftable'")))
+            {
+              *t = 0;
+              s += wsprintf(s, " [Type: %s]", sym.hdr.Name);
+            }
+          }
+        }
 
-				*s = 0;
+        *s = 0;
 
-				_RPT1(0, "%s\n", buf);
-			}
-		}
+        _RPT1(0, "%s\n", buf);
+      }
+    }
 
-		_RPT0(0, "\nEnd of leak dump.\n");
-	}
+    _RPT0(0, "\nEnd of leak dump.\n");
+  }
 
-	dbghelp.pSymCleanup(hProc);
+  dbghelp.pSymCleanup(hProc);
 }
 
-#pragma section(".CRT$XPB",long,read)
+#pragma section(".CRT$XPB", long, read)
 
-extern "C" static __declspec(allocate(".CRT$XPB")) void (__cdecl *g_leaktrap)() = VDDumpMemoryLeaksVC;
+extern "C" static __declspec(allocate(".CRT$XPB")) void(__cdecl *g_leaktrap)() = VDDumpMemoryLeaksVC;
 
 #endif

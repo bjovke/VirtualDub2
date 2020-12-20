@@ -20,213 +20,241 @@
 #include "FilterFrameQueue.h"
 #include "FilterFrameRequest.h"
 
-VDFilterFrameQueue::VDFilterFrameQueue() {
+VDFilterFrameQueue::VDFilterFrameQueue() {}
+
+VDFilterFrameQueue::~VDFilterFrameQueue()
+{
+  Shutdown();
 }
 
-VDFilterFrameQueue::~VDFilterFrameQueue() {
-	Shutdown();
+void VDFilterFrameQueue::Shutdown()
+{
+  ValidateState();
+
+  while (!mRequests.empty())
+  {
+    VDFilterFrameRequest *r = mRequests.front();
+    mRequests.pop_front();
+
+    if (r)
+      r->Release();
+  }
 }
 
-void VDFilterFrameQueue::Shutdown() {
-	ValidateState();
+bool VDFilterFrameQueue::GetRequest(sint64 frame, VDFilterFrameRequest **req)
+{
+  Requests::iterator it(mRequests.begin()), itEnd(mRequests.end());
+  for (; it != itEnd; ++it)
+  {
+    VDFilterFrameRequest *r = *it;
 
-	while(!mRequests.empty()) {
-		VDFilterFrameRequest *r = mRequests.front();
-		mRequests.pop_front();
+    if (r && r->GetCacheable() && r->GetTiming().mOutputFrame == frame)
+    {
+      *req = r;
+      r->AddRef();
+      return true;
+    }
+  }
 
-		if (r)
-			r->Release();
-	}
+  return false;
 }
 
-bool VDFilterFrameQueue::GetRequest(sint64 frame, VDFilterFrameRequest **req) {
-	Requests::iterator it(mRequests.begin()), itEnd(mRequests.end());
-	for(; it != itEnd; ++it) {
-		VDFilterFrameRequest *r = *it;
+void VDFilterFrameQueue::CompleteRequests(sint64 frame, VDFilterFrameBuffer *buf)
+{
+  Requests::iterator it(mRequests.begin()), itEnd(mRequests.end());
+  for (; it != itEnd; ++it)
+  {
+    VDFilterFrameRequest *r = *it;
 
-		if (r && r->GetCacheable() && r->GetTiming().mOutputFrame == frame) {
-			*req = r;
-			r->AddRef();
-			return true;
-		}
-	}
-
-	return false;
+    if (r->GetCacheable() && r->GetTiming().mOutputFrame == frame)
+    {
+      *it = NULL;
+      r->SetResultBuffer(buf);
+      r->MarkComplete(true);
+      r->Release();
+      break;
+    }
+  }
 }
 
-void VDFilterFrameQueue::CompleteRequests(sint64 frame, VDFilterFrameBuffer *buf) {
-	Requests::iterator it(mRequests.begin()), itEnd(mRequests.end());
-	for(; it != itEnd; ++it) {
-		VDFilterFrameRequest *r = *it;
-
-		if (r->GetCacheable() && r->GetTiming().mOutputFrame == frame) {
-			*it = NULL;
-			r->SetResultBuffer(buf);
-			r->MarkComplete(true);
-			r->Release();
-			break;
-		}
-	}
+void VDFilterFrameQueue::CreateRequest(VDFilterFrameRequest **req)
+{
+  mAllocator.Allocate(req);
 }
 
-void VDFilterFrameQueue::CreateRequest(VDFilterFrameRequest **req) {
-	mAllocator.Allocate(req);
+void VDFilterFrameQueue::Add(VDFilterFrameRequest *req)
+{
+  Requests::iterator it(mRequests.end()), itBegin(mRequests.begin());
+  uint32             batchNum = req->GetBatchNumber();
+
+  bool motionRequired = false;
+  while (it != itBegin)
+  {
+    Requests::iterator itTest(it);
+    --itTest;
+
+    VDFilterFrameRequest *other         = *itTest;
+    uint32                otherBatchNum = other->GetBatchNumber();
+
+    if ((sint32)(batchNum - otherBatchNum) >= 0)
+      break;
+
+    it             = itTest;
+    motionRequired = true;
+  }
+
+  if (motionRequired)
+  {
+    mRequests.push_back(NULL);
+
+    Requests::iterator itCopyEnd(mRequests.end());
+    --itCopyEnd;
+    std::copy_backward(it, itCopyEnd, mRequests.end());
+    *it = req;
+  }
+  else
+  {
+    mRequests.push_back(req);
+  }
+  req->AddRef();
 }
 
-void VDFilterFrameQueue::Add(VDFilterFrameRequest *req) {
-	Requests::iterator it(mRequests.end()), itBegin(mRequests.begin());
-	uint32 batchNum = req->GetBatchNumber();
+bool VDFilterFrameQueue::PeekNextRequest(const uint32 *batchNumberLimit, VDFilterFrameRequest **req)
+{
+  VDFilterFrameRequest *r;
+  for (;;)
+  {
+    if (mRequests.empty())
+      return false;
 
-	bool motionRequired = false;
-	while(it != itBegin) {
-		Requests::iterator itTest(it);
-		--itTest;
+    r = mRequests.front();
+    if (!r)
+    {
+      mRequests.pop_front();
+      continue;
+    }
 
-		VDFilterFrameRequest *other = *itTest;
-		uint32 otherBatchNum = other->GetBatchNumber();
+    if (!r->IsActive())
+    {
+      mRequests.pop_front();
+      r->Release();
+      continue;
+    }
 
-		if ((sint32)(batchNum - otherBatchNum) >= 0)
-			break;
+    if (batchNumberLimit && (sint32)(r->GetBatchNumber() - *batchNumberLimit) >= 0)
+      return false;
 
-		it = itTest;
-		motionRequired = true;
-	}
+    bool                       anyFailed;
+    VDFilterFrameRequestError *error;
+    if (!r->AreSourcesReady(&anyFailed, &error))
+      return false;
 
-	if (motionRequired) {
-		mRequests.push_back(NULL);
+    if (anyFailed)
+    {
+      r->SetError(error);
+      r->MarkComplete(false);
+      continue;
+    }
 
-		Requests::iterator itCopyEnd(mRequests.end());
-		--itCopyEnd;
-		std::copy_backward(it, itCopyEnd, mRequests.end());
-		*it = req;
-	} else {
-		mRequests.push_back(req);
-	}
-	req->AddRef();
+    r->AddRef();
+    *req = r;
+
+    return true;
+  }
 }
 
-bool VDFilterFrameQueue::PeekNextRequest(const uint32 *batchNumberLimit, VDFilterFrameRequest **req) {
-	VDFilterFrameRequest *r;
-	for(;;) {
-		if (mRequests.empty())
-			return false;
+bool VDFilterFrameQueue::GetNextRequest(const uint32 *batchNumberLimit, VDFilterFrameRequest **req)
+{
+  VDFilterFrameRequest *r;
+  for (;;)
+  {
+    if (mRequests.empty())
+      return false;
 
-		r = mRequests.front();
-		if (!r) {
-			mRequests.pop_front();
-			continue;
-		}
+    r = mRequests.front();
+    if (!r)
+    {
+      mRequests.pop_front();
+      continue;
+    }
 
-		if (!r->IsActive()) {
-			mRequests.pop_front();
-			r->Release();
-			continue;
-		}
+    if (!r->IsActive())
+    {
+      mRequests.pop_front();
+      r->Release();
+      continue;
+    }
 
-		if (batchNumberLimit && (sint32)(r->GetBatchNumber() - *batchNumberLimit) >= 0)
-			return false;
+    if (batchNumberLimit && (sint32)(r->GetBatchNumber() - *batchNumberLimit) >= 0)
+      return false;
 
-		bool anyFailed;
-		VDFilterFrameRequestError *error;
-		if (!r->AreSourcesReady(&anyFailed, &error))
-			return false;
+    bool                       anyFailed;
+    VDFilterFrameRequestError *error;
+    if (!r->AreSourcesReady(&anyFailed, &error))
+      return false;
 
-		if (anyFailed) {
-			r->SetError(error);
-			r->MarkComplete(false);
-			continue;
-		}
+    if (anyFailed)
+    {
+      r->SetError(error);
+      r->MarkComplete(false);
+      mRequests.pop_front();
+      r->Release();
+      continue;
+    }
 
-		r->AddRef();
-		*req = r;
+    mRequests.pop_front();
+    *req = r;
 
-		return true;
-	}
+    return true;
+  }
 }
 
-bool VDFilterFrameQueue::GetNextRequest(const uint32 *batchNumberLimit, VDFilterFrameRequest **req) {
-	VDFilterFrameRequest *r;
-	for(;;) {
-		if (mRequests.empty())
-			return false;
+bool VDFilterFrameQueue::Remove(VDFilterFrameRequest *req)
+{
+  Requests::iterator it(mRequests.begin()), itEnd(mRequests.end());
+  for (; it != itEnd; ++it)
+  {
+    VDFilterFrameRequest *r = *it;
 
-		r = mRequests.front();
-		if (!r) {
-			mRequests.pop_front();
-			continue;
-		}
+    if (r == req)
+    {
+      *it = mRequests.back();
+      mRequests.pop_back();
 
-		if (!r->IsActive()) {
-			mRequests.pop_front();
-			r->Release();
-			continue;
-		}
+      req->Release();
+      return true;
+    }
+  }
 
-		if (batchNumberLimit && (sint32)(r->GetBatchNumber() - *batchNumberLimit) >= 0)
-			return false;
-
-		bool anyFailed;
-		VDFilterFrameRequestError *error;
-		if (!r->AreSourcesReady(&anyFailed, &error))
-			return false;
-
-		if (anyFailed) {
-			r->SetError(error);
-			r->MarkComplete(false);
-			mRequests.pop_front();
-			r->Release();
-			continue;
-		}
-
-		mRequests.pop_front();
-		*req = r;
-
-		return true;
-	}
+  return false;
 }
 
-bool VDFilterFrameQueue::Remove(VDFilterFrameRequest *req) {
-	Requests::iterator it(mRequests.begin()), itEnd(mRequests.end());
-	for(; it != itEnd; ++it) {
-		VDFilterFrameRequest *r = *it;
+void VDFilterFrameQueue::DumpStatus(VDTextOutputStream &os)
+{
+  Requests::iterator it(mRequests.begin()), itEnd(mRequests.end());
+  for (; it != itEnd; ++it)
+  {
+    VDFilterFrameRequest *            r = *it;
+    const VDFilterFrameRequestTiming &t = r->GetTiming();
 
-		if (r == req) {
-			*it = mRequests.back();
-			mRequests.pop_back();
+    os.FormatLine("    Source frame %u | Output frame %u", (unsigned)t.mSourceFrame, (unsigned)t.mOutputFrame);
 
-			req->Release();
-			return true;
-		}
-	}
+    uint32 srcCount = r->GetSourceCount();
+    for (uint32 srcIdx = 0; srcIdx < srcCount; ++srcIdx)
+    {
+      IVDFilterFrameClientRequest *cr = r->GetSourceRequest(srcIdx);
 
-	return false;
-}
-
-void VDFilterFrameQueue::DumpStatus(VDTextOutputStream& os) {
-	Requests::iterator it(mRequests.begin()), itEnd(mRequests.end());
-	for(; it != itEnd; ++it) {
-		VDFilterFrameRequest *r = *it;
-		const VDFilterFrameRequestTiming& t =  r->GetTiming();
-
-		os.FormatLine("    Source frame %u | Output frame %u"
-			, (unsigned)t.mSourceFrame
-			, (unsigned)t.mOutputFrame
-			);
-
-		uint32 srcCount = r->GetSourceCount();
-		for(uint32 srcIdx = 0; srcIdx < srcCount; ++srcIdx) {
-			IVDFilterFrameClientRequest *cr = r->GetSourceRequest(srcIdx);
-
-			os.FormatLine("      Source frame %u | %s"
-				, (unsigned)cr->GetFrameNumber()
-				, cr->IsCompleted() ? cr->IsSuccessful() ? "Succeeded" : "Failed" : "Pending"
-				);
-		}
-	}
+      os.FormatLine(
+        "      Source frame %u | %s",
+        (unsigned)cr->GetFrameNumber(),
+        cr->IsCompleted() ? cr->IsSuccessful() ? "Succeeded" : "Failed" : "Pending");
+    }
+  }
 }
 
 #ifdef _DEBUG
-	void VDFilterFrameQueue::ValidateState() {
-		mAllocator.ValidateState();
-	}
+void VDFilterFrameQueue::ValidateState()
+{
+  mAllocator.ValidateState();
+}
 #endif

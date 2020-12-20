@@ -32,65 +32,69 @@ struct IAudioClient;
 struct IAudioCaptureClient;
 struct IAudioRenderClient;
 
-class IVDAudioGrabberCallbackWASAPI {
+class IVDAudioGrabberCallbackWASAPI
+{
 public:
-	virtual void ReceiveAudioDataWASAPI() = 0;
+  virtual void ReceiveAudioDataWASAPI() = 0;
 };
 
-class VDAudioGrabberWASAPI : public VDThread {
-	VDAudioGrabberWASAPI(const VDAudioGrabberWASAPI&);
-	VDAudioGrabberWASAPI& operator=(const VDAudioGrabberWASAPI&);
+class VDAudioGrabberWASAPI : public VDThread
+{
+  VDAudioGrabberWASAPI(const VDAudioGrabberWASAPI &);
+  VDAudioGrabberWASAPI &operator=(const VDAudioGrabberWASAPI &);
+
 public:
-	VDAudioGrabberWASAPI();
-	~VDAudioGrabberWASAPI();
+  VDAudioGrabberWASAPI();
+  ~VDAudioGrabberWASAPI();
 
-	bool GetFormat(vdstructex<WAVEFORMATEX>& format);
+  bool GetFormat(vdstructex<WAVEFORMATEX> &format);
 
-	bool Init(IVDAudioGrabberCallbackWASAPI *cb);
-	void Shutdown();
+  bool Init(IVDAudioGrabberCallbackWASAPI *cb);
+  void Shutdown();
 
-	bool Start();
-	void Stop();
+  bool Start();
+  void Stop();
 
-	uint32 ReadData(void *dst, size_t bytes);
+  uint32 ReadData(void *dst, size_t bytes);
 
 protected:
-	void ThreadRun();
+  void ThreadRun();
 
-	bool InitEndpoint();
-	void ShutdownEndpoint();
+  bool InitEndpoint();
+  void ShutdownEndpoint();
 
-	bool InitLocal();
-	void RunLocal();
-	void ShutdownLocal();
+  bool InitLocal();
+  void RunLocal();
+  void ShutdownLocal();
 
-	enum State {
-		kStateNone,
-		kStateInitFailed,
-		kStateInited,
-		kStateStartFailed,
-		kStateRunning
-	};
+  enum State
+  {
+    kStateNone,
+    kStateInitFailed,
+    kStateInited,
+    kStateStartFailed,
+    kStateRunning
+  };
 
-	VDAtomicInt mCurrentState;
-	VDAtomicInt mRequestedState;
-	VDSignal mStateChangeRequested;
-	VDSignal mStateChangeCompleted;
+  VDAtomicInt mCurrentState;
+  VDAtomicInt mRequestedState;
+  VDSignal    mStateChangeRequested;
+  VDSignal    mStateChangeCompleted;
 
-	IVDAudioGrabberCallbackWASAPI *mpCB;
+  IVDAudioGrabberCallbackWASAPI *mpCB;
 
-	IMMDevice *mpMMDevice;
-	IAudioClient *mpAudioClientCapture;
-	IAudioClient *mpAudioClientRender;
-	IAudioCaptureClient *mpAudioCaptureClient;
-	IAudioRenderClient *mpAudioRenderClient;
-	HANDLE mhEventRender;
-	uint32 mOutputBufferFrames;
-	uint32 mBytesPerFrame;
-	uint32 mChannels;
-	vdstructex<WAVEFORMATEX> mMixFormat;
+  IMMDevice *              mpMMDevice;
+  IAudioClient *           mpAudioClientCapture;
+  IAudioClient *           mpAudioClientRender;
+  IAudioCaptureClient *    mpAudioCaptureClient;
+  IAudioRenderClient *     mpAudioRenderClient;
+  HANDLE                   mhEventRender;
+  uint32                   mOutputBufferFrames;
+  uint32                   mBytesPerFrame;
+  uint32                   mChannels;
+  vdstructex<WAVEFORMATEX> mMixFormat;
 
-	VDRingBuffer<sint16> mTransferBuffer;
+  VDRingBuffer<sint16> mTransferBuffer;
 };
 
-#endif	// f_VD2_VDCAPTURE_AUDIOGRABBERWASAPI_H
+#endif // f_VD2_VDCAPTURE_AUDIOGRABBERWASAPI_H

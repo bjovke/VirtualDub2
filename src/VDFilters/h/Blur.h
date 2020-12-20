@@ -20,15 +20,16 @@
 
 struct VDPixmap;
 
-class VEffect {
+class VEffect
+{
 public:
-	virtual ~VEffect() {}
+  virtual ~VEffect() {}
 
-	virtual void run(const VDPixmap&) = 0;
-	virtual void run(const VDPixmap&, const VDPixmap&) = 0;
+  virtual void run(const VDPixmap &)                   = 0;
+  virtual void run(const VDPixmap &, const VDPixmap &) = 0;
 };
 
-VEffect *VCreateEffectBlur(const VDPixmapLayout&);
-VEffect *VCreateEffectBlurHi(const VDPixmapLayout&);
+VEffect *VCreateEffectBlur(const VDPixmapLayout &);
+VEffect *VCreateEffectBlurHi(const VDPixmapLayout &);
 
 #endif

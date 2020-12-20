@@ -23,71 +23,83 @@
 
 extern HINSTANCE g_hInst;
 
-static bool VDFilterCallbackIsFPUEnabled() {
-	return !!FPU_enabled;
+static bool VDFilterCallbackIsFPUEnabled()
+{
+  return !!FPU_enabled;
 }
 
-static bool VDFilterCallbackIsMMXEnabled() {
-	return !!MMX_enabled;
+static bool VDFilterCallbackIsMMXEnabled()
+{
+  return !!MMX_enabled;
 }
 
-static void VDFilterCallbackThrowExcept(const char *format, ...) {
-	va_list val;
-	MyError e;
+static void VDFilterCallbackThrowExcept(const char *format, ...)
+{
+  va_list val;
+  MyError e;
 
-	va_start(val, format);
-	e.vsetf(format, val);
-	va_end(val);
+  va_start(val, format);
+  e.vsetf(format, val);
+  va_end(val);
 
-	throw e;
+  throw e;
 }
 
-static void VDFilterCallbackThrowExceptMemory() {
-	throw MyMemoryError();
+static void VDFilterCallbackThrowExceptMemory()
+{
+  throw MyMemoryError();
 }
 
 // This is really disgusting...
 
-struct VDXFilterVTbls {
-	void *pvtblVBitmap;
+struct VDXFilterVTbls
+{
+  void *pvtblVBitmap;
 };
 
-static void VDFilterCallbackInitVTables(VDXFilterVTbls *pvtbls) {
-	VBitmap tmp;
-	pvtbls->pvtblVBitmap = *(void **)&tmp;
+static void VDFilterCallbackInitVTables(VDXFilterVTbls *pvtbls)
+{
+  VBitmap tmp;
+  pvtbls->pvtblVBitmap = *(void **)&tmp;
 }
 
-static long VDFilterCallbackGetCPUFlags() {
-	return CPUGetEnabledExtensions();
+static long VDFilterCallbackGetCPUFlags()
+{
+  return CPUGetEnabledExtensions();
 }
 
-static long VDFilterCallbackGetHostVersionInfo(char *buf, int len) {
-	char tbuf[256];
+static long VDFilterCallbackGetHostVersionInfo(char *buf, int len)
+{
+  char tbuf[256];
 
-	LoadString(g_hInst, IDS_TITLE_INITIAL, tbuf, sizeof tbuf);
-	_snprintf(buf, len, tbuf, version_num,
+  LoadString(g_hInst, IDS_TITLE_INITIAL, tbuf, sizeof tbuf);
+  _snprintf(
+    buf,
+    len,
+    tbuf,
+    version_num,
 #ifdef _DEBUG
-		"debug"
+    "debug"
 #else
-		"release"
+    "release"
 #endif
-		);
+  );
 
-	return version_num;
+  return version_num;
 }
 
-VDXFilterFunctions g_VDFilterCallbacks={
-	FilterAdd,
-	FilterRemove,
-	VDFilterCallbackIsFPUEnabled,
-	VDFilterCallbackIsMMXEnabled,
-	VDFilterCallbackInitVTables,
-	VDFilterCallbackThrowExceptMemory,
-	VDFilterCallbackThrowExcept,
-	VDFilterCallbackGetCPUFlags,
-	VDFilterCallbackGetHostVersionInfo,
+VDXFilterFunctions g_VDFilterCallbacks = {
+  FilterAdd,
+  FilterRemove,
+  VDFilterCallbackIsFPUEnabled,
+  VDFilterCallbackIsMMXEnabled,
+  VDFilterCallbackInitVTables,
+  VDFilterCallbackThrowExceptMemory,
+  VDFilterCallbackThrowExcept,
+  VDFilterCallbackGetCPUFlags,
+  VDFilterCallbackGetHostVersionInfo,
 };
 
-FilterModInitFunctions g_FilterModCallbacks={
-	FilterModAdd,
+FilterModInitFunctions g_FilterModCallbacks = {
+  FilterModAdd,
 };

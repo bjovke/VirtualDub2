@@ -22,37 +22,41 @@
 #include <vd2/system/time.h>
 
 class IVDAsyncBlitter;
-class IVDDubPreviewTimer {
+class IVDDubPreviewTimer
+{
 public:
-	virtual uint32 GetPreviewTime() = 0;
+  virtual uint32 GetPreviewTime() = 0;
 };
 
-class VDDubPreviewClock : public IVDTimerCallback {
-	VDDubPreviewClock(VDDubPreviewClock&);
-	VDDubPreviewClock& operator=(const VDDubPreviewClock&);
+class VDDubPreviewClock : public IVDTimerCallback
+{
+  VDDubPreviewClock(VDDubPreviewClock &);
+  VDDubPreviewClock &operator=(const VDDubPreviewClock &);
+
 public:
-	VDDubPreviewClock();
-	~VDDubPreviewClock();
+  VDDubPreviewClock();
+  ~VDDubPreviewClock();
 
-	void Init(IVDDubPreviewTimer *timer, IVDAsyncBlitter *blitter, double frameRate, double frameMultiplicationFactor);
-	void Shutdown();
+  void Init(IVDDubPreviewTimer *timer, IVDAsyncBlitter *blitter, double frameRate, double frameMultiplicationFactor);
+  void Shutdown();
 
-	VDEvent<VDDubPreviewClock, uint32>& OnClockUpdated() {
-		return mEventClockUpdated;
-	}
+  VDEvent<VDDubPreviewClock, uint32> &OnClockUpdated()
+  {
+    return mEventClockUpdated;
+  }
 
 protected:
-	void TimerCallback();
+  void TimerCallback();
 
-	uint32 ReadClock() const;
+  uint32 ReadClock() const;
 
-	IVDDubPreviewTimer *mpTimer;
-	IVDAsyncBlitter *mpBlitter;
-	uint32	mBaseTime;
-	double	mTicksToFrames;
-	VDCallbackTimer		mFrameTimer;
+  IVDDubPreviewTimer *mpTimer;
+  IVDAsyncBlitter *   mpBlitter;
+  uint32              mBaseTime;
+  double              mTicksToFrames;
+  VDCallbackTimer     mFrameTimer;
 
-	VDEvent<VDDubPreviewClock, uint32> mEventClockUpdated;
+  VDEvent<VDDubPreviewClock, uint32> mEventClockUpdated;
 };
 
-#endif	// f_VD2_DUBPREVIEWCLOCK_H
+#endif // f_VD2_DUBPREVIEWCLOCK_H

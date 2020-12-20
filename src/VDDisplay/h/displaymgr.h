@@ -20,7 +20,7 @@
 #define f_VD2_RIZA_DISPLAYMGR_H
 
 #ifdef _MSC_VER
-	#pragma once
+#pragma once
 #endif
 
 #include <vd2/system/vdstl.h>
@@ -28,124 +28,135 @@
 
 class VDVideoDisplayManager;
 
-class VDVideoDisplayClient : public vdlist_node {
+class VDVideoDisplayClient : public vdlist_node
+{
 public:
-	VDVideoDisplayClient();
-	~VDVideoDisplayClient();
+  VDVideoDisplayClient();
+  ~VDVideoDisplayClient();
 
-	void Attach(VDVideoDisplayManager *pManager);
-	void Detach(VDVideoDisplayManager *pManager);
-	void SetPreciseMode(bool enabled);
-	void SetTicksEnabled(bool enabled);
-	void SetRequiresFullScreen(bool fs);
+  void Attach(VDVideoDisplayManager *pManager);
+  void Detach(VDVideoDisplayManager *pManager);
+  void SetPreciseMode(bool enabled);
+  void SetTicksEnabled(bool enabled);
+  void SetRequiresFullScreen(bool fs);
 
-	const uint8 *GetLogicalPalette() const;
-	struct HPALETTE__ *GetPalette() const;
-	void RemapPalette();
+  const uint8 *      GetLogicalPalette() const;
+  struct HPALETTE__ *GetPalette() const;
+  void               RemapPalette();
 
-	virtual void OnTick() {}
-	virtual void OnDisplayChange() {}
-	virtual void OnForegroundChange(bool foreground) {}
-	virtual void OnRealizePalette() {}
+  virtual void OnTick() {}
+  virtual void OnDisplayChange() {}
+  virtual void OnForegroundChange(bool foreground) {}
+  virtual void OnRealizePalette() {}
 
 protected:
-	friend class VDVideoDisplayManager;
+  friend class VDVideoDisplayManager;
 
-	VDVideoDisplayManager	*mpManager;
+  VDVideoDisplayManager *mpManager;
 
-	bool	mbPreciseMode;
-	bool	mbTicksEnabled;
-	bool	mbRequiresFullScreen;
+  bool mbPreciseMode;
+  bool mbTicksEnabled;
+  bool mbRequiresFullScreen;
 };
 
-class IVDVideoDisplayManager {
+class IVDVideoDisplayManager
+{
 };
 
-class VDVideoDisplayManager : public VDThread, public IVDVideoDisplayManager {
+class VDVideoDisplayManager : public VDThread, public IVDVideoDisplayManager
+{
 public:
-	VDVideoDisplayManager();
-	~VDVideoDisplayManager();
+  VDVideoDisplayManager();
+  ~VDVideoDisplayManager();
 
-	bool	Init();
-	void	Shutdown();
+  bool Init();
+  void Shutdown();
 
-	void	SetBackgroundFallbackEnabled(bool enabled);
+  void SetBackgroundFallbackEnabled(bool enabled);
 
-	void	RemoteCall(void (*function)(void *), void *data);
+  void RemoteCall(void (*function)(void *), void *data);
 
-	void	AddClient(VDVideoDisplayClient *pClient);
-	void	RemoveClient(VDVideoDisplayClient *pClient);
-	void	ModifyPreciseMode(bool enabled);
-	void	ReaffirmPreciseMode();
-	void	ModifyTicksEnabled(bool enabled);
+  void AddClient(VDVideoDisplayClient *pClient);
+  void RemoveClient(VDVideoDisplayClient *pClient);
+  void ModifyPreciseMode(bool enabled);
+  void ReaffirmPreciseMode();
+  void ModifyTicksEnabled(bool enabled);
 
-	void RemapPalette();
-	HPALETTE	GetPalette() const { return mhPalette; }
-	const uint8 *GetLogicalPalette() const { return mLogicalPalette; }
-
-protected:
-	void	ThreadRun();
-	void	ThreadRunFullRemote();
-	void	ThreadRunTimerOnly();
-
-	void	DispatchTicks();
-	void	PostTick();
-	void	DispatchRemoteCalls();
-
-	bool	RegisterWindowClass();
-	void	UnregisterWindowClass();
-
-	bool	IsDisplayPaletted();
-	void	CreateDitheringPalette();
-	void	DestroyDitheringPalette();
-	void	CheckForegroundState();
-
-	void	EnterPreciseMode();
-	void	ExitPreciseMode();
-
-	static LRESULT CALLBACK StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+  void     RemapPalette();
+  HPALETTE GetPalette() const
+  {
+    return mhPalette;
+  }
+  const uint8 *GetLogicalPalette() const
+  {
+    return mLogicalPalette;
+  }
 
 protected:
-	enum {
-		kTimerID_ForegroundPoll	= 10,
-		kTimerID_Tick			= 11
-	};
+  void ThreadRun();
+  void ThreadRunFullRemote();
+  void ThreadRunTimerOnly();
 
-	VDAtomicInt	mTicksEnabledCount;
-	uintptr	mTickTimerId;
+  void DispatchTicks();
+  void PostTick();
+  void DispatchRemoteCalls();
 
-	int		mPreciseModeCount;
-	uint32	mPreciseModePeriod;
-	VDAtomicInt	mPreciseModeLastUse;
+  bool RegisterWindowClass();
+  void UnregisterWindowClass();
 
-	HPALETTE	mhPalette;
-	ATOM		mWndClass;
-	HWND		mhwnd;
+  bool IsDisplayPaletted();
+  void CreateDitheringPalette();
+  void DestroyDitheringPalette();
+  void CheckForegroundState();
 
-	bool		mbMultithreaded;
-	bool		mbAppActive;
-	bool		mbBackgroundFallbackEnabled;
+  void EnterPreciseMode();
+  void ExitPreciseMode();
 
-	typedef vdlist<VDVideoDisplayClient> Clients;
-	Clients		mClients;
+  static LRESULT CALLBACK StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+  LRESULT CALLBACK        WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-	VDThreadID			mThreadID;
-	VDAtomicInt			mOutstandingTicks;
+protected:
+  enum
+  {
+    kTimerID_ForegroundPoll = 10,
+    kTimerID_Tick           = 11
+  };
 
-	VDSignal			mStarted;
-	VDCriticalSection	mMutex;
+  VDAtomicInt mTicksEnabledCount;
+  uintptr     mTickTimerId;
 
-	struct RemoteCallNode : vdlist_node {
-		void (*mpFunction)(void *data);
-		void *mpData;
-		VDSignal mSignal;
-	};
+  int         mPreciseModeCount;
+  uint32      mPreciseModePeriod;
+  VDAtomicInt mPreciseModeLastUse;
 
-	typedef vdlist<RemoteCallNode> RemoteCalls;
-	RemoteCalls	mRemoteCalls;
+  HPALETTE mhPalette;
+  ATOM     mWndClass;
+  HWND     mhwnd;
 
-	uint8	mLogicalPalette[256];
+  bool mbMultithreaded;
+  bool mbAppActive;
+  bool mbBackgroundFallbackEnabled;
+
+  typedef vdlist<VDVideoDisplayClient> Clients;
+  Clients                              mClients;
+
+  VDThreadID  mThreadID;
+  VDAtomicInt mOutstandingTicks;
+
+  VDSignal          mStarted;
+  VDCriticalSection mMutex;
+
+  struct RemoteCallNode : vdlist_node
+  {
+    void (*mpFunction)(void *data);
+    void *   mpData;
+    VDSignal mSignal;
+  };
+
+  typedef vdlist<RemoteCallNode> RemoteCalls;
+  RemoteCalls                    mRemoteCalls;
+
+  uint8 mLogicalPalette[256];
 };
 
 #endif

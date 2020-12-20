@@ -1,8 +1,9 @@
-void __declspec(naked) VDComputeComplexFFT_DIT_radix4_iter0_SSE(float *p, unsigned bits) {
-	static const __declspec(align(16)) uint32 kNegate[4]={0,0,0x80000000,0x80000000};
-	static const __declspec(align(16)) uint32 kRotate[4]={0,0,0,0x80000000};
+void __declspec(naked) VDComputeComplexFFT_DIT_radix4_iter0_SSE(float *p, unsigned bits)
+{
+  static const __declspec(align(16)) uint32 kNegate[4] = {0, 0, 0x80000000, 0x80000000};
+  static const __declspec(align(16)) uint32 kRotate[4] = {0, 0, 0, 0x80000000};
 
-	__asm {
+  __asm {
 		mov		eax, 8
 		mov		cl, [esp+8]
 		shl		eax, cl
@@ -32,36 +33,42 @@ xloop:
 		jnz		xloop
 
 		ret
-	}
+  }
 }
 
-void __declspec(naked) VDComputeComplexFFT_DIT_radix4_table_SSE(float *p, unsigned bits, unsigned subbits, const float *table, int table_step) {
-	static const __declspec(align(16)) uint32 kTwiddleInverts[4]={0x80000000,0,0x80000000,0};
-	static const __declspec(align(16)) uint32 kRotationInvert[4]={0,0,0,0x80000000};
-	static const __declspec(align(16)) float kIdentity[4]={1,0,1,0};
-	__asm {
+void __declspec(naked) VDComputeComplexFFT_DIT_radix4_table_SSE(
+  float *      p,
+  unsigned     bits,
+  unsigned     subbits,
+  const float *table,
+  int          table_step)
+{
+  static const __declspec(align(16)) uint32 kTwiddleInverts[4] = {0x80000000, 0, 0x80000000, 0};
+  static const __declspec(align(16)) uint32 kRotationInvert[4] = {0, 0, 0, 0x80000000};
+  static const __declspec(align(16)) float  kIdentity[4]       = {1, 0, 1, 0};
+  __asm {
 		push	ebp
 		mov		ebp, esp
 		push	edi
 		push	esi
 		push	ebx
 
-#define p_p			[ebp+8]
-#define p_bits		[ebp+12]
-#define p_subbits	[ebp+16]
-#define p_table		[ebp+20]
-#define p_tablestep	[ebp+24]
+#define p_p [ebp + 8]
+#define p_bits [ebp + 12]
+#define p_subbits [ebp + 16]
+#define p_table [ebp + 20]
+#define p_tablestep [ebp + 24]
 
-#define l_twiddle0	[esp]
-#define l_twiddle1	[esp+16]
-#define l_twiddle2	[esp+32]
-#define l_twiddle3	[esp+48]
-#define l_Mh		[esp+64]
-#define l_Np		[esp+68]
-#define l_limit		[esp+72]
-#define l_p			[esp+76]
-#define l_tablestep	[esp+80]
-#define l_ebpsav	[esp+84]
+#define l_twiddle0 [esp]
+#define l_twiddle1 [esp + 16]
+#define l_twiddle2 [esp + 32]
+#define l_twiddle3 [esp + 48]
+#define l_Mh [esp + 64]
+#define l_Np [esp + 68]
+#define l_limit [esp + 72]
+#define l_p [esp + 76]
+#define l_tablestep [esp + 80]
+#define l_ebpsav [esp + 84]
 
 		sub		esp, 88
 		and		esp, -16
@@ -195,39 +202,45 @@ yloop:
 #undef l_p
 #undef l_tablestep
 #undef l_ebpsav
-	}
+  }
 }
 
-void __declspec(naked) VDComputeComplexFFT_DIT_radix4_table2x_SSE(float *p, unsigned bits, unsigned subbits, const float *table, int table_step) {
-	static const __declspec(align(16)) uint32 kTwiddleInverts[4]={0x80000000,0,0x80000000,0};
-	static const __declspec(align(16)) uint32 kRotationInvert[4]={0,0x80000000,0,0x80000000};
-	static const __declspec(align(16)) float kIdentity[4]={1,0,1,0};
+void __declspec(naked) VDComputeComplexFFT_DIT_radix4_table2x_SSE(
+  float *      p,
+  unsigned     bits,
+  unsigned     subbits,
+  const float *table,
+  int          table_step)
+{
+  static const __declspec(align(16)) uint32 kTwiddleInverts[4] = {0x80000000, 0, 0x80000000, 0};
+  static const __declspec(align(16)) uint32 kRotationInvert[4] = {0, 0x80000000, 0, 0x80000000};
+  static const __declspec(align(16)) float  kIdentity[4]       = {1, 0, 1, 0};
 
-	__asm {
+  __asm {
 		push	ebp
 		mov		ebp, esp
 		push	edi
 		push	esi
 		push	ebx
 
-#define p_p			[ebp+8]
-#define p_bits		[ebp+12]
-#define p_subbits	[ebp+16]
-#define p_table		[ebp+20]
-#define p_tablestep	[ebp+24]
+#define p_p [ebp + 8]
+#define p_bits [ebp + 12]
+#define p_subbits [ebp + 16]
+#define p_table [ebp + 20]
+#define p_tablestep [ebp + 24]
 
-#define l_twiddle0	[esp]
-#define l_twiddle1	[esp+16]
-#define l_twiddle2	[esp+32]
-#define l_twiddle3	[esp+48]
-#define l_twiddle4	[esp+64]
-#define l_twiddle5	[esp+80]
-#define l_Mh		[esp+96]
-#define l_Np		[esp+100]
-#define l_limit		[esp+104]
-#define l_p			[esp+108]
-#define l_tablestep	[esp+112]
-#define l_ebpsav	[esp+116]
+#define l_twiddle0 [esp]
+#define l_twiddle1 [esp + 16]
+#define l_twiddle2 [esp + 32]
+#define l_twiddle3 [esp + 48]
+#define l_twiddle4 [esp + 64]
+#define l_twiddle5 [esp + 80]
+#define l_Mh [esp + 96]
+#define l_Np [esp + 100]
+#define l_limit [esp + 104]
+#define l_p [esp + 108]
+#define l_tablestep [esp + 112]
+#define l_ebpsav [esp + 116]
 
 		sub		esp, 120
 		and		esp, -16
@@ -389,5 +402,5 @@ xloop:
 #undef l_p
 #undef l_tablestep
 #undef l_ebpsav
-	}
+  }
 }

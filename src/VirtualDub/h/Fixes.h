@@ -30,19 +30,19 @@ struct AVIStreamHeader_fixed{
     uint16		wPriority;
     uint16		wLanguage;
     uint32		dwInitialFrames;
-    uint32		dwScale;	
+    uint32		dwScale;
     uint32		dwRate;
     uint32		dwStart;
     uint32		dwLength;
     uint32		dwSuggestedBufferSize;
     uint32		dwQuality;
     uint32		dwSampleSize;
-	struct {
-		sint16	left;
-		sint16	top;
-		sint16	right;
-		sint16	bottom;
-	} rcFrame;
+        struct {
+                sint16	left;
+                sint16	top;
+                sint16	right;
+                sint16	bottom;
+        } rcFrame;
 };
 */
 

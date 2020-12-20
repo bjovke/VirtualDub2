@@ -30,122 +30,123 @@
 extern HINSTANCE g_hInst;
 
 extern "C" void asm_threshold_run(
-		void *dst,
-		unsigned long width,
-		unsigned long height,
-		unsigned long stride,
-		unsigned long threshold
-		);
+  void *        dst,
+  unsigned long width,
+  unsigned long height,
+  unsigned long stride,
+  unsigned long threshold);
 
 ///////////////////////////////////
 
-class VDVFThreshold : public VDXVideoFilter {
+class VDVFThreshold : public VDXVideoFilter
+{
 public:
-	VDVFThreshold();
+  VDVFThreshold();
 
-	uint32 GetParams();
-	void Run();
-	bool Configure(VDXHWND hwnd);
-	void GetSettingString(char *buf, int maxlen);
-	void GetScriptString(char *buf, int maxlen);
+  uint32 GetParams();
+  void   Run();
+  bool   Configure(VDXHWND hwnd);
+  void   GetSettingString(char *buf, int maxlen);
+  void   GetScriptString(char *buf, int maxlen);
 
-	VDXVF_DECLARE_SCRIPT_METHODS();
+  VDXVF_DECLARE_SCRIPT_METHODS();
 
-	void ScriptConfig(IVDXScriptInterpreter *isi, const VDXScriptValue *argv, int argc);
+  void ScriptConfig(IVDXScriptInterpreter *isi, const VDXScriptValue *argv, int argc);
 
 protected:
-	static void Update(long value, void *pvThis);
+  static void Update(long value, void *pvThis);
 
-	sint32 mThreshold;
+  sint32 mThreshold;
 };
 
-VDVFThreshold::VDVFThreshold()
-	: mThreshold(128)
+VDVFThreshold::VDVFThreshold() : mThreshold(128) {}
+
+uint32 VDVFThreshold::GetParams()
 {
+  const VDXPixmapLayout &pxlsrc = *fa->src.mpPixmapLayout;
+  VDXPixmapLayout &      pxldst = *fa->dst.mpPixmapLayout;
+
+  if (pxlsrc.format != nsVDXPixmap::kPixFormat_XRGB8888)
+    return FILTERPARAM_NOT_SUPPORTED;
+
+  pxldst.data  = pxlsrc.data;
+  pxldst.pitch = pxlsrc.pitch;
+
+  return FILTERPARAM_PURE_TRANSFORM | FILTERPARAM_SUPPORTS_ALTFORMATS;
 }
 
-uint32 VDVFThreshold::GetParams() {
-	const VDXPixmapLayout& pxlsrc = *fa->src.mpPixmapLayout;
-	VDXPixmapLayout& pxldst = *fa->dst.mpPixmapLayout;
-
-	if (pxlsrc.format != nsVDXPixmap::kPixFormat_XRGB8888)
-		return FILTERPARAM_NOT_SUPPORTED;
-
-	pxldst.data = pxlsrc.data;
-	pxldst.pitch = pxlsrc.pitch;
-
-	return FILTERPARAM_PURE_TRANSFORM | FILTERPARAM_SUPPORTS_ALTFORMATS;
-}
-
-void VDVFThreshold::Run() {
+void VDVFThreshold::Run()
+{
 #ifdef _M_IX86
-	asm_threshold_run(
-			fa->src.data,
-			fa->src.w,
-			fa->src.h,
-			fa->src.pitch,
-			mThreshold
-			);
+  asm_threshold_run(fa->src.data, fa->src.w, fa->src.h, fa->src.pitch, mThreshold);
 #else
-	ptrdiff_t pitch = fa->dst.pitch;
-	uint8 *row = (uint8 *)fa->dst.data;
-	uint32 h = fa->dst.h;
-	uint32 w = fa->dst.w;
-	sint32 addend = 0x80000000 - (mThreshold << 8);
+  ptrdiff_t pitch  = fa->dst.pitch;
+  uint8 *   row    = (uint8 *)fa->dst.data;
+  uint32    h      = fa->dst.h;
+  uint32    w      = fa->dst.w;
+  sint32    addend = 0x80000000 - (mThreshold << 8);
 
-	for(uint32 y=0; y<h; ++y) {
-		uint8 *p = row;
+  for (uint32 y = 0; y < h; ++y)
+  {
+    uint8 *p = row;
 
-		for(uint32 x=0; x<w; ++x) {
-			int b = p[0];
-			int g = p[1];
-			int r = p[2];
-			int y = 54*r + 183*g + 19*b;
+    for (uint32 x = 0; x < w; ++x)
+    {
+      int b = p[0];
+      int g = p[1];
+      int r = p[2];
+      int y = 54 * r + 183 * g + 19 * b;
 
-			*(uint32 *)p = (addend + y) >> 31;
-			p += 4;
-		}
+      *(uint32 *)p = (addend + y) >> 31;
+      p += 4;
+    }
 
-		row += pitch;
-	}
+    row += pitch;
+  }
 #endif
 }
 
-bool VDVFThreshold::Configure(VDXHWND hwnd) {
-	if (!hwnd)
-		return true;
+bool VDVFThreshold::Configure(VDXHWND hwnd)
+{
+  if (!hwnd)
+    return true;
 
-	sint32 result;
-	if (!VDFilterGetSingleValue(hwnd, mThreshold, &result, 0, 256, "threshold", fa->ifp2, Update, this)) {
-		mThreshold = result;
-		return false;
-	}
+  sint32 result;
+  if (!VDFilterGetSingleValue(hwnd, mThreshold, &result, 0, 256, "threshold", fa->ifp2, Update, this))
+  {
+    mThreshold = result;
+    return false;
+  }
 
-	mThreshold = result;
-	return true;
+  mThreshold = result;
+  return true;
 }
 
-void VDVFThreshold::GetSettingString(char *buf, int maxlen) {
-	SafePrintf(buf, maxlen, " (%d%%)", (mThreshold*25)/64);
+void VDVFThreshold::GetSettingString(char *buf, int maxlen)
+{
+  SafePrintf(buf, maxlen, " (%d%%)", (mThreshold * 25) / 64);
 }
 
-void VDVFThreshold::GetScriptString(char *buf, int maxlen) {
-	SafePrintf(buf, maxlen, "Config(%d)", mThreshold);
+void VDVFThreshold::GetScriptString(char *buf, int maxlen)
+{
+  SafePrintf(buf, maxlen, "Config(%d)", mThreshold);
 }
 
 VDXVF_BEGIN_SCRIPT_METHODS(VDVFThreshold)
-	VDXVF_DEFINE_SCRIPT_METHOD(VDVFThreshold, ScriptConfig, "i")
+VDXVF_DEFINE_SCRIPT_METHOD(VDVFThreshold, ScriptConfig, "i")
 VDXVF_END_SCRIPT_METHODS()
 
-void VDVFThreshold::ScriptConfig(IVDXScriptInterpreter *isi, const VDXScriptValue *argv, int argc) {
-	mThreshold = argv[0].asInt();
+void VDVFThreshold::ScriptConfig(IVDXScriptInterpreter *isi, const VDXScriptValue *argv, int argc)
+{
+  mThreshold = argv[0].asInt();
 }
 
-void VDVFThreshold::Update(long value, void *pvThis) {
-	((VDVFThreshold *)pvThis)->mThreshold = value;
+void VDVFThreshold::Update(long value, void *pvThis)
+{
+  ((VDVFThreshold *)pvThis)->mThreshold = value;
 }
 
 extern const VDXFilterDefinition g_VDVFThreshold = VDXVideoFilterDefinition<VDVFThreshold>(
-	NULL,
-	"threshold",
-	"Converts an image to black and white by comparing brightness values.\n\n[Assembly optimized]");
+  NULL,
+  "threshold",
+  "Converts an image to black and white by comparing brightness values.\n\n[Assembly optimized]");

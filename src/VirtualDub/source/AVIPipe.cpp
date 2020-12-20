@@ -25,264 +25,298 @@
 
 ///////////////////////////////
 
-AVIPipe::AVIPipe(int buffers, long roundup_size)
-	: mState(0)
-	, mReadPt(0)
-	, mWritePt(0)
-	, mLevel(0)
+AVIPipe::AVIPipe(int buffers, long roundup_size) : mState(0), mReadPt(0), mWritePt(0), mLevel(0)
 {
-	pBuffers		= new struct AVIPipeBuffer[buffers];
-	num_buffers		= buffers;
-	round_size		= roundup_size;
+  pBuffers    = new struct AVIPipeBuffer[buffers];
+  num_buffers = buffers;
+  round_size  = roundup_size;
 
-	if (pBuffers)
-		memset((void *)pBuffers, 0, sizeof(struct AVIPipeBuffer)*buffers);
+  if (pBuffers)
+    memset((void *)pBuffers, 0, sizeof(struct AVIPipeBuffer) * buffers);
 }
 
-AVIPipe::~AVIPipe() {
-	if (pBuffers) {
-		for(int i=0; i<num_buffers; ++i) {
-			void *buf = pBuffers[i].mFrameInfo.mpData;
+AVIPipe::~AVIPipe()
+{
+  if (pBuffers)
+  {
+    for (int i = 0; i < num_buffers; ++i)
+    {
+      void *buf = pBuffers[i].mFrameInfo.mpData;
 
-			if (buf)
-				VirtualFree(buf, 0, MEM_RELEASE);
-		}
+      if (buf)
+        VirtualFree(buf, 0, MEM_RELEASE);
+    }
 
-		delete[] (void *)pBuffers;
-	}
+    delete[](void *) pBuffers;
+  }
 }
 
-bool AVIPipe::isFinalized() {
-	if (mState & kFlagFinalizeTriggered) {
-		finalizeAck();
-		return true;
-	}
+bool AVIPipe::isFinalized()
+{
+  if (mState & kFlagFinalizeTriggered)
+  {
+    finalizeAck();
+    return true;
+  }
 
-	return false;
+  return false;
 }
 
-bool AVIPipe::isFinalizeAcked() {
-	return 0 != (mState & kFlagFinalizeAcknowledged);
+bool AVIPipe::isFinalizeAcked()
+{
+  return 0 != (mState & kFlagFinalizeAcknowledged);
 }
 
-bool AVIPipe::full() {
-	vdsynchronized(mcsQueue) {
-		if (mState & kFlagAborted)
-			return false;
+bool AVIPipe::full()
+{
+  vdsynchronized(mcsQueue)
+  {
+    if (mState & kFlagAborted)
+      return false;
 
-		return mLevel >= num_buffers;
-	}
+    return mLevel >= num_buffers;
+  }
 
-	return false;
+  return false;
 }
 
-void *AVIPipe::getWriteBuffer(long len, int *handle_ptr) {
-	int h;
+void *AVIPipe::getWriteBuffer(long len, int *handle_ptr)
+{
+  int h;
 
-	if (!len) ++len;
-	len = ((len+round_size-1) / round_size) * round_size;
+  if (!len)
+    ++len;
+  len = ((len + round_size - 1) / round_size) * round_size;
 
-	++mcsQueue;
+  ++mcsQueue;
 
-	for(;;) {
-		if (mState & kFlagAborted) {
-			--mcsQueue;
-			return NULL;
-		}
+  for (;;)
+  {
+    if (mState & kFlagAborted)
+    {
+      --mcsQueue;
+      return NULL;
+    }
 
-		// try the buffer right under us
-		if (mLevel < num_buffers) {
-			h = mWritePt;
-			if (pBuffers[h].mBufferSize >= len)
-				break;
-		}
+    // try the buffer right under us
+    if (mLevel < num_buffers)
+    {
+      h = mWritePt;
+      if (pBuffers[h].mBufferSize >= len)
+        break;
+    }
 
-		int nBufferWithoutAllocation = -1;
-		int nBufferWithSmallAllocation = -1;
+    int nBufferWithoutAllocation   = -1;
+    int nBufferWithSmallAllocation = -1;
 
-		h = mWritePt;
-		for(int cnt = num_buffers - mLevel; cnt>0; --cnt) {
-			if (!pBuffers[h].mBufferSize)
-				nBufferWithoutAllocation = h;
-			else if (pBuffers[h].mBufferSize < len)
-				nBufferWithSmallAllocation = h;
-			else
-				goto buffer_found;
+    h = mWritePt;
+    for (int cnt = num_buffers - mLevel; cnt > 0; --cnt)
+    {
+      if (!pBuffers[h].mBufferSize)
+        nBufferWithoutAllocation = h;
+      else if (pBuffers[h].mBufferSize < len)
+        nBufferWithSmallAllocation = h;
+      else
+        goto buffer_found;
 
-			if (++h >= num_buffers)
-				h = 0;
-		}
+      if (++h >= num_buffers)
+        h = 0;
+    }
 
-		if (nBufferWithoutAllocation >= 0)
-			h = nBufferWithoutAllocation;
-		else if (nBufferWithSmallAllocation >= 0)
-			h = nBufferWithSmallAllocation;
-		else {
-			--mcsQueue;
-			msigRead.wait();
-			++mcsQueue;
-			continue;
-		}
+    if (nBufferWithoutAllocation >= 0)
+      h = nBufferWithoutAllocation;
+    else if (nBufferWithSmallAllocation >= 0)
+      h = nBufferWithSmallAllocation;
+    else
+    {
+      --mcsQueue;
+      msigRead.wait();
+      ++mcsQueue;
+      continue;
+    }
 
-buffer_found:
+  buffer_found:
 
-		if (pBuffers[h].mBufferSize < len) {
-			void *buf = pBuffers[h].mFrameInfo.mpData;
-			if (buf) {
-				VirtualFree(buf, 0, MEM_RELEASE);
-				pBuffers[h].mFrameInfo.mpData = NULL;
-				pBuffers[h].mBufferSize = 0;
-			}
+    if (pBuffers[h].mBufferSize < len)
+    {
+      void *buf = pBuffers[h].mFrameInfo.mpData;
+      if (buf)
+      {
+        VirtualFree(buf, 0, MEM_RELEASE);
+        pBuffers[h].mFrameInfo.mpData = NULL;
+        pBuffers[h].mBufferSize       = 0;
+      }
 
-			buf = VirtualAlloc(NULL, len, MEM_COMMIT, PAGE_READWRITE);
-			if (buf) {
-				pBuffers[h].mFrameInfo.mpData = buf;
-				pBuffers[h].mBufferSize = len;
-			}
-		}
+      buf = VirtualAlloc(NULL, len, MEM_COMMIT, PAGE_READWRITE);
+      if (buf)
+      {
+        pBuffers[h].mFrameInfo.mpData = buf;
+        pBuffers[h].mBufferSize       = len;
+      }
+    }
 
-		if (h != mWritePt) {
-			std::swap(pBuffers[h].mFrameInfo.mpData, pBuffers[mWritePt].mFrameInfo.mpData);
-			std::swap(pBuffers[h].mBufferSize, pBuffers[mWritePt].mBufferSize);
-		}
-	}
+    if (h != mWritePt)
+    {
+      std::swap(pBuffers[h].mFrameInfo.mpData, pBuffers[mWritePt].mFrameInfo.mpData);
+      std::swap(pBuffers[h].mBufferSize, pBuffers[mWritePt].mBufferSize);
+    }
+  }
 
-	pBuffers[h].mbInUse = true;
+  pBuffers[h].mbInUse = true;
 
-	--mcsQueue;
+  --mcsQueue;
 
-	*handle_ptr = h;
+  *handle_ptr = h;
 
-	return pBuffers[h].mFrameInfo.mpData;
+  return pBuffers[h].mFrameInfo.mpData;
 }
 
-void AVIPipe::postBuffer(const VDRenderVideoPipeFrameInfo& frameInfo) {
-	++mcsQueue;
-	void *buf = pBuffers[mWritePt].mFrameInfo.mpData;
-	pBuffers[mWritePt].mFrameInfo = frameInfo;
-	pBuffers[mWritePt].mFrameInfo.mpData = buf;
+void AVIPipe::postBuffer(const VDRenderVideoPipeFrameInfo &frameInfo)
+{
+  ++mcsQueue;
+  void *buf                            = pBuffers[mWritePt].mFrameInfo.mpData;
+  pBuffers[mWritePt].mFrameInfo        = frameInfo;
+  pBuffers[mWritePt].mFrameInfo.mpData = buf;
 
-	if (++mWritePt >= num_buffers)
-		mWritePt = 0;
-	++mLevel;
-	--mcsQueue;
+  if (++mWritePt >= num_buffers)
+    mWritePt = 0;
+  ++mLevel;
+  --mcsQueue;
 
-	msigWrite.signal();
+  msigWrite.signal();
 
-	mEventBufferAdded.Raise(this, false);
+  mEventBufferAdded.Raise(this, false);
 
-	//	_RPT2(0,"Posted buffer %ld (ID %08lx)\n",handle,cur_write-1);
+  //	_RPT2(0,"Posted buffer %ld (ID %08lx)\n",handle,cur_write-1);
 }
 
-void AVIPipe::getDropDistances(int& total, int& indep) {
-	total = 0;
-	indep = 0x3FFFFFFF;
+void AVIPipe::getDropDistances(int &total, int &indep)
+{
+  total = 0;
+  indep = 0x3FFFFFFF;
 
-	++mcsQueue;
+  ++mcsQueue;
 
-	int h = mReadPt;
-	for(int cnt = mLevel; cnt>0; --cnt) {
-		int ahead = total;
+  int h = mReadPt;
+  for (int cnt = mLevel; cnt > 0; --cnt)
+  {
+    int ahead = total;
 
-		if (pBuffers[h].mbInUse) {
-			if (pBuffers[h].mFrameInfo.mDroptype == kIndependent && ahead >= 0 && ahead < indep)
-				indep = ahead;
-		}
+    if (pBuffers[h].mbInUse)
+    {
+      if (pBuffers[h].mFrameInfo.mDroptype == kIndependent && ahead >= 0 && ahead < indep)
+        indep = ahead;
+    }
 
-		++total;
-		if (++h >= num_buffers)
-			h = 0;
-	}
+    ++total;
+    if (++h >= num_buffers)
+      h = 0;
+  }
 
-	--mcsQueue;
+  --mcsQueue;
 }
 
-void AVIPipe::getQueueInfo(int& total, int& finals, int& allocated) {
-	total = 0;
-	finals = 0;
-	allocated = num_buffers;
+void AVIPipe::getQueueInfo(int &total, int &finals, int &allocated)
+{
+  total     = 0;
+  finals    = 0;
+  allocated = num_buffers;
 
-	++mcsQueue;
+  ++mcsQueue;
 
-	int h = mReadPt;
-	for(int cnt = mLevel; cnt>0; --cnt) {
-		if (pBuffers[h].mbInUse) {
-			++total;
+  int h = mReadPt;
+  for (int cnt = mLevel; cnt > 0; --cnt)
+  {
+    if (pBuffers[h].mbInUse)
+    {
+      ++total;
 
-			if (pBuffers[h].mFrameInfo.mbFinal)
-				++finals;
-		}
-		if (++h >= num_buffers)
-			h = 0;
-	}
+      if (pBuffers[h].mFrameInfo.mbFinal)
+        ++finals;
+    }
+    if (++h >= num_buffers)
+      h = 0;
+  }
 
-	--mcsQueue;
+  --mcsQueue;
 }
 
-const VDRenderVideoPipeFrameInfo *AVIPipe::TryReadBuffer() {
-	vdsynchronized(mcsQueue) {
-		if (mState & kFlagAborted)
-			return NULL;
+const VDRenderVideoPipeFrameInfo *AVIPipe::TryReadBuffer()
+{
+  vdsynchronized(mcsQueue)
+  {
+    if (mState & kFlagAborted)
+      return NULL;
 
-		if (mLevel)
-			return &pBuffers[mReadPt].mFrameInfo;
-	}
+    if (mLevel)
+      return &pBuffers[mReadPt].mFrameInfo;
+  }
 
-	if (mState & kFlagFinalizeTriggered) {
-		mState |= kFlagFinalizeAcknowledged;
+  if (mState & kFlagFinalizeTriggered)
+  {
+    mState |= kFlagFinalizeAcknowledged;
 
-		msigRead.signal();
-	}
+    msigRead.signal();
+  }
 
-	return NULL;
+  return NULL;
 }
 
-const VDRenderVideoPipeFrameInfo *AVIPipe::getReadBuffer() {
-	for(;;) {
-		vdsynchronized(mcsQueue) {
-			if (mState & kFlagAborted)
-				return NULL;
+const VDRenderVideoPipeFrameInfo *AVIPipe::getReadBuffer()
+{
+  for (;;)
+  {
+    vdsynchronized(mcsQueue)
+    {
+      if (mState & kFlagAborted)
+        return NULL;
 
-			if (mLevel)
-				return &pBuffers[mReadPt].mFrameInfo;
-		}
+      if (mLevel)
+        return &pBuffers[mReadPt].mFrameInfo;
+    }
 
-		if (mState & kFlagFinalizeTriggered) {
-			mState |= kFlagFinalizeAcknowledged;
+    if (mState & kFlagFinalizeTriggered)
+    {
+      mState |= kFlagFinalizeAcknowledged;
 
-			msigRead.signal();
-			return NULL;
-		}
+      msigRead.signal();
+      return NULL;
+    }
 
-		msigWrite.wait();
-	}
+    msigWrite.wait();
+  }
 }
 
-void AVIPipe::releaseBuffer() {
-	++mcsQueue;
-	pBuffers[mReadPt].mbInUse = false;
-	--mLevel;
-	if (++mReadPt >= num_buffers)
-		mReadPt = 0;
-	--mcsQueue;
+void AVIPipe::releaseBuffer()
+{
+  ++mcsQueue;
+  pBuffers[mReadPt].mbInUse = false;
+  --mLevel;
+  if (++mReadPt >= num_buffers)
+    mReadPt = 0;
+  --mcsQueue;
 
-	msigRead.signal();
+  msigRead.signal();
 }
 
-void AVIPipe::finalize() {
-	mState |= kFlagFinalizeTriggered;
-	msigWrite.signal();
+void AVIPipe::finalize()
+{
+  mState |= kFlagFinalizeTriggered;
+  msigWrite.signal();
 }
 
-void AVIPipe::finalizeAck() {
-	mState |= kFlagFinalizeAcknowledged;
-	msigRead.signal();
+void AVIPipe::finalizeAck()
+{
+  mState |= kFlagFinalizeAcknowledged;
+  msigRead.signal();
 }
 
-void AVIPipe::abort() {
-	vdsynchronized(mcsQueue) {
-		mState |= kFlagAborted;
-		msigWrite.signal();
-		msigRead.signal();
-	}
+void AVIPipe::abort()
+{
+  vdsynchronized(mcsQueue)
+  {
+    mState |= kFlagAborted;
+    msigWrite.signal();
+    msigRead.signal();
+  }
 }

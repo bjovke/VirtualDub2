@@ -26,70 +26,78 @@
 #include <windows.h>
 #include <vd2/VDXFrame/VideoFilterDialog.h>
 
-namespace {
-#if defined(_MSC_VER) && _MSC_VER >= 1300
-		extern "C" char __ImageBase;
-
-	HINSTANCE GetLocalHInstance() {
-		return (HINSTANCE)&__ImageBase;
-	}
-#else
-	HINSTANCE GetLocalHInstance() {
-		MEMORY_BASIC_INFORMATION meminfo={0};
-		if (!VirtualQuery(GetLocalHInstance, &meminfo, sizeof(meminfo)))
-			return NULL;
-
-		return (HINSTANCE)meminfo.AllocationBase;
-	}
-#endif
-}
-
-VDXVideoFilterDialog::VDXVideoFilterDialog()
-	: mhdlg(NULL)
+namespace
 {
+#if defined(_MSC_VER) && _MSC_VER >= 1300
+extern "C" char __ImageBase;
+
+HINSTANCE GetLocalHInstance()
+{
+  return (HINSTANCE)&__ImageBase;
+}
+#else
+HINSTANCE GetLocalHInstance()
+{
+  MEMORY_BASIC_INFORMATION meminfo = {0};
+  if (!VirtualQuery(GetLocalHInstance, &meminfo, sizeof(meminfo)))
+    return NULL;
+
+  return (HINSTANCE)meminfo.AllocationBase;
+}
+#endif
+} // namespace
+
+VDXVideoFilterDialog::VDXVideoFilterDialog() : mhdlg(NULL) {}
+
+LRESULT VDXVideoFilterDialog::Show(HINSTANCE hInst, LPCSTR templName, HWND parent)
+{
+  if (!hInst)
+    hInst = GetLocalHInstance();
+
+  return DialogBoxParamA(hInst, templName, parent, StaticDlgProc, (LPARAM)this);
 }
 
-LRESULT VDXVideoFilterDialog::Show(HINSTANCE hInst, LPCSTR templName, HWND parent) {
-	if (!hInst)
-		hInst = GetLocalHInstance();
+LRESULT VDXVideoFilterDialog::Show(HINSTANCE hInst, LPCWSTR templName, HWND parent)
+{
+  if (!hInst)
+    hInst = GetLocalHInstance();
 
-	return DialogBoxParamA(hInst, templName, parent, StaticDlgProc, (LPARAM)this);
+  return DialogBoxParamW(hInst, templName, parent, StaticDlgProc, (LPARAM)this);
 }
 
-LRESULT VDXVideoFilterDialog::Show(HINSTANCE hInst, LPCWSTR templName, HWND parent) {
-	if (!hInst)
-		hInst = GetLocalHInstance();
+HWND VDXVideoFilterDialog::ShowModeless(HINSTANCE hInst, LPCSTR templName, HWND parent)
+{
+  if (!hInst)
+    hInst = GetLocalHInstance();
 
-	return DialogBoxParamW(hInst, templName, parent, StaticDlgProc, (LPARAM)this);
+  return CreateDialogParamA(hInst, templName, parent, StaticDlgProc, (LPARAM)this);
 }
 
-HWND VDXVideoFilterDialog::ShowModeless(HINSTANCE hInst, LPCSTR templName, HWND parent) {
-	if (!hInst)
-		hInst = GetLocalHInstance();
+HWND VDXVideoFilterDialog::ShowModeless(HINSTANCE hInst, LPCWSTR templName, HWND parent)
+{
+  if (!hInst)
+    hInst = GetLocalHInstance();
 
-	return CreateDialogParamA(hInst, templName, parent, StaticDlgProc, (LPARAM)this);
+  return CreateDialogParamW(hInst, templName, parent, StaticDlgProc, (LPARAM)this);
 }
 
-HWND VDXVideoFilterDialog::ShowModeless(HINSTANCE hInst, LPCWSTR templName, HWND parent) {
-	if (!hInst)
-		hInst = GetLocalHInstance();
+INT_PTR CALLBACK VDXVideoFilterDialog::StaticDlgProc(HWND hdlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  VDXVideoFilterDialog *pThis;
 
-	return CreateDialogParamW(hInst, templName, parent, StaticDlgProc, (LPARAM)this);
+  if (msg == WM_INITDIALOG)
+  {
+    pThis = (VDXVideoFilterDialog *)lParam;
+    SetWindowLongPtr(hdlg, DWLP_USER, (LONG_PTR)pThis);
+    pThis->mhdlg = hdlg;
+  }
+  else
+    pThis = (VDXVideoFilterDialog *)GetWindowLongPtr(hdlg, DWLP_USER);
+
+  return pThis ? pThis->DlgProc(msg, wParam, lParam) : FALSE;
 }
 
-INT_PTR CALLBACK VDXVideoFilterDialog::StaticDlgProc(HWND hdlg, UINT msg, WPARAM wParam, LPARAM lParam) {
-	VDXVideoFilterDialog *pThis;
-
-	if (msg == WM_INITDIALOG) {
-		pThis = (VDXVideoFilterDialog *)lParam;
-		SetWindowLongPtr(hdlg, DWLP_USER, (LONG_PTR)pThis);
-		pThis->mhdlg = hdlg;
-	} else
-		pThis = (VDXVideoFilterDialog *)GetWindowLongPtr(hdlg, DWLP_USER);
-
-	return pThis ? pThis->DlgProc(msg, wParam, lParam) : FALSE;
-}
-
-INT_PTR VDXVideoFilterDialog::DlgProc(UINT msg, WPARAM wParam, LPARAM lParam) {
-	return FALSE;
+INT_PTR VDXVideoFilterDialog::DlgProc(UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  return FALSE;
 }

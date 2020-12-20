@@ -22,47 +22,49 @@
 
 class VBitmap;
 
-extern "C" void asm_histogram_gray_run(void *dst,long width,long height,long stride,long *histo_table);
-extern "C" void asm_histogram_gray24_run(void *dst,long width,long height,long stride,long *histo_table);
-extern "C" void asm_histogram_color_run(char *dst,long width,long height,long stride,long *histo_table);
-extern "C" void asm_histogram_color24_run(char *dst,long width,long height,long stride,long *histo_table);
-extern "C" void asm_histogram16_run(void *dst,long width,long height,long stride,long *histo_table, long pixmask);
+extern "C" void asm_histogram_gray_run(void *dst, long width, long height, long stride, long *histo_table);
+extern "C" void asm_histogram_gray24_run(void *dst, long width, long height, long stride, long *histo_table);
+extern "C" void asm_histogram_color_run(char *dst, long width, long height, long stride, long *histo_table);
+extern "C" void asm_histogram_color24_run(char *dst, long width, long height, long stride, long *histo_table);
+extern "C" void asm_histogram16_run(void *dst, long width, long height, long stride, long *histo_table, long pixmask);
 
-class Histogram {
+class Histogram
+{
 private:
-	long histo[256];
-	long total_pixels;
-	static const RGBQUAD fore_colors[];
+  long                 histo[256];
+  long                 total_pixels;
+  static const RGBQUAD fore_colors[];
 
-	char *lpGraphBits;
-	HBITMAP hBitmapGraph;
-	HDC hDCGraph;
-	int max_height;
+  char *  lpGraphBits;
+  HBITMAP hBitmapGraph;
+  HDC     hDCGraph;
+  int     max_height;
 
-	int histo_mode;
+  int histo_mode;
 
 public:
-	enum {
-		MODE_BLUE = 0,
-		MODE_GREEN = 1,
-		MODE_RED = 2,
-		MODE_GRAY = 3,
-		NUM_MODES,
-		MODE_NEXT = -1,
-	};
+  enum
+  {
+    MODE_BLUE  = 0,
+    MODE_GREEN = 1,
+    MODE_RED   = 2,
+    MODE_GRAY  = 3,
+    NUM_MODES,
+    MODE_NEXT = -1,
+  };
 
-	Histogram(HDC hDC, int max_height);
-	~Histogram();
+  Histogram(HDC hDC, int max_height);
+  ~Histogram();
 
-	void Zero();
-	void Process(const VBitmap *vbmp);
-	void Process24(const VBitmap *vbmp);
-	void Process16(const VBitmap *vbmp);
-	void ComputeHeights(long *height_ptrs, long graph_height);
-	void Draw(HDC hDC, LPRECT lpr);
+  void Zero();
+  void Process(const VBitmap *vbmp);
+  void Process24(const VBitmap *vbmp);
+  void Process16(const VBitmap *vbmp);
+  void ComputeHeights(long *height_ptrs, long graph_height);
+  void Draw(HDC hDC, LPRECT lpr);
 
-	void SetMode(int);
-	int GetMode();
+  void SetMode(int);
+  int  GetMode();
 };
 
 #endif

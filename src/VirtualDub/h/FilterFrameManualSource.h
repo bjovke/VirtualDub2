@@ -28,58 +28,77 @@
 class VDFilterFrameRequest;
 class VDTextOutputStream;
 
-class VDFilterFrameManualSource : public vdrefcounted<IVDFilterFrameSource> {
-	VDFilterFrameManualSource(const VDFilterFrameManualSource&);
-	VDFilterFrameManualSource& operator=(const VDFilterFrameManualSource&);
+class VDFilterFrameManualSource : public vdrefcounted<IVDFilterFrameSource>
+{
+  VDFilterFrameManualSource(const VDFilterFrameManualSource &);
+  VDFilterFrameManualSource &operator=(const VDFilterFrameManualSource &);
 
 public:
-	int filter_index;
+  int filter_index;
 
-	VDFilterFrameManualSource();
-	~VDFilterFrameManualSource();
+  VDFilterFrameManualSource();
+  ~VDFilterFrameManualSource();
 
-	void *AsInterface(uint32 id);
+  void *AsInterface(uint32 id);
 
-	const char *GetDebugDesc() const { return ""; }
+  const char *GetDebugDesc() const
+  {
+    return "";
+  }
 
-	VDFilterFrameAllocatorProxy *GetOutputAllocatorProxy();
+  VDFilterFrameAllocatorProxy *GetOutputAllocatorProxy();
 
-	void VDFilterFrameManualSource::RegisterSourceAllocReqs(uint32 index, VDFilterFrameAllocatorProxy *prev);
-	void RegisterAllocatorProxies(VDFilterFrameAllocatorManager *mgr);
-	void SetOutputLayout(const VDPixmapLayout& layout);
+  void VDFilterFrameManualSource::RegisterSourceAllocReqs(uint32 index, VDFilterFrameAllocatorProxy *prev);
+  void RegisterAllocatorProxies(VDFilterFrameAllocatorManager *mgr);
+  void SetOutputLayout(const VDPixmapLayout &layout);
 
-	bool IsAccelerated() const { return false; }
+  bool IsAccelerated() const
+  {
+    return false;
+  }
 
-	bool CreateRequest(sint64 outputFrame, bool writable, uint32 batchNumber, IVDFilterFrameClientRequest **req);
-	bool GetDirectMapping(sint64 outputFrame, sint64& sourceFrame, int& sourceIndex);
-	sint64 GetSourceFrame(sint64 outputFrame);
-	sint64 GetSymbolicFrame(sint64 outputFrame, IVDFilterFrameSource *source);
-	sint64 GetNearestUniqueFrame(sint64 outputFrame);
-	const VDPixmapLayout& GetOutputLayout() { return mLayout; }
-	void InvalidateAllCachedFrames();
+  bool   CreateRequest(sint64 outputFrame, bool writable, uint32 batchNumber, IVDFilterFrameClientRequest **req);
+  bool   GetDirectMapping(sint64 outputFrame, sint64 &sourceFrame, int &sourceIndex);
+  sint64 GetSourceFrame(sint64 outputFrame);
+  sint64 GetSymbolicFrame(sint64 outputFrame, IVDFilterFrameSource *source);
+  sint64 GetNearestUniqueFrame(sint64 outputFrame);
+  const VDPixmapLayout &GetOutputLayout()
+  {
+    return mLayout;
+  }
+  void InvalidateAllCachedFrames();
 
-	void DumpStatus(VDTextOutputStream&) {}
+  void DumpStatus(VDTextOutputStream &) {}
 
-	void Start(IVDFilterFrameEngine *frameEngine) {}
-	void Stop() {}
-	int AllocateNodes(int threads) { return 1; }
-	RunResult RunRequests(const uint32 *batchNumberLimit, int index) { return kRunResult_Idle; }
-	RunResult RunProcess(int index) { return kRunResult_Idle; }
+  void Start(IVDFilterFrameEngine *frameEngine) {}
+  void Stop() {}
+  int  AllocateNodes(int threads)
+  {
+    return 1;
+  }
+  RunResult RunRequests(const uint32 *batchNumberLimit, int index)
+  {
+    return kRunResult_Idle;
+  }
+  RunResult RunProcess(int index)
+  {
+    return kRunResult_Idle;
+  }
 
-	bool PeekNextRequestFrame(VDPosition& pos);
-	bool GetNextRequest(const uint32 *batchLimit, VDFilterFrameRequest **ppReq);
-	bool AllocateRequestBuffer(VDFilterFrameRequest *req);
-	void CompleteRequest(VDFilterFrameRequest *req, bool cache);
+  bool PeekNextRequestFrame(VDPosition &pos);
+  bool GetNextRequest(const uint32 *batchLimit, VDFilterFrameRequest **ppReq);
+  bool AllocateRequestBuffer(VDFilterFrameRequest *req);
+  void CompleteRequest(VDFilterFrameRequest *req, bool cache);
 
 protected:
-	virtual bool InitNewRequest(VDFilterFrameRequest *req, sint64 outputFrame, bool writable, uint32 batchNumber);
+  virtual bool InitNewRequest(VDFilterFrameRequest *req, sint64 outputFrame, bool writable, uint32 batchNumber);
 
-	VDFilterFrameQueue mFrameQueueWaiting;
-	VDFilterFrameQueue mFrameQueueInProgress;
-	VDFilterFrameCache mFrameCache;
-	VDFilterFrameAllocatorProxy mAllocator;
+  VDFilterFrameQueue          mFrameQueueWaiting;
+  VDFilterFrameQueue          mFrameQueueInProgress;
+  VDFilterFrameCache          mFrameCache;
+  VDFilterFrameAllocatorProxy mAllocator;
 
-	VDPixmapLayout mLayout;
+  VDPixmapLayout mLayout;
 };
 
-#endif	// f_VD2_FILTERFRAMEMANUALSOURCE_H
+#endif // f_VD2_FILTERFRAMEMANUALSOURCE_H

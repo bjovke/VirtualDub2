@@ -23,16 +23,16 @@
 struct VDPixmap;
 class VDPixmapBuffer;
 
-bool DecodeBMPHeader(const void *pBuffer, long cbBuffer, int& w, int& h, bool& bHasAlpha);
-void DecodeBMP(const void *pBuffer, long cbBuffer, const VDPixmap& vb);
+bool DecodeBMPHeader(const void *pBuffer, long cbBuffer, int &w, int &h, bool &bHasAlpha);
+void DecodeBMP(const void *pBuffer, long cbBuffer, const VDPixmap &vb);
 
-bool DecodeTGAHeader(const void *pBuffer, long cbBuffer, int& w, int& h, int& format, bool& bHasAlpha);
-void DecodeTGA(const void *pBuffer, long cbBuffer, const VDPixmap& vb);
+bool DecodeTGAHeader(const void *pBuffer, long cbBuffer, int &w, int &h, int &format, bool &bHasAlpha);
+void DecodeTGA(const void *pBuffer, long cbBuffer, const VDPixmap &vb);
 
 bool VDIsJPEGHeader(const void *pv, uint32 len);
 bool VDIsMayaIFFHeader(const void *pv, uint32 len);
 
-void DecodeImage(const void *pBuffer, long cbBuffer, VDPixmapBuffer& vb, int desired_format, bool& bHasAlpha);
-void DecodeImage(const char *pszFile, VDPixmapBuffer& vb, int desired_format, bool& bHasAlpha);
+void DecodeImage(const void *pBuffer, long cbBuffer, VDPixmapBuffer &vb, int desired_format, bool &bHasAlpha);
+void DecodeImage(const char *pszFile, VDPixmapBuffer &vb, int desired_format, bool &bHasAlpha);
 
 #endif

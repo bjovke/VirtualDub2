@@ -21,4 +21,4 @@
 void VDLoadRegistry(const wchar_t *path);
 void VDSaveRegistry(const wchar_t *fnpath);
 
-#endif	// f_VD2_VDLIB_PORTABLEREGISTRY_H
+#endif // f_VD2_VDLIB_PORTABLEREGISTRY_H

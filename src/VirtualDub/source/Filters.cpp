@@ -24,7 +24,7 @@
 #include <ctype.h>
 
 #ifdef _MSC_VER
-	#include <vd2/system/win32/intrin.h>
+#include <vd2/system/win32/intrin.h>
 #endif
 
 #include "resource.h"
@@ -46,7 +46,7 @@
 #include <vd2/plugin/vdplugin.h>
 
 VDFilterChainDesc g_filterChain;
-FilterSystem	filters;
+FilterSystem      filters;
 
 ///////////////////////////////////////////////////////////////////////////
 //
@@ -55,72 +55,76 @@ FilterSystem	filters;
 ///////////////////////////////////////////////////////////////////////////
 
 FilterDefinitionInstance::FilterDefinitionInstance(VDExternalModule *pfm)
-	: mpExtModule(pfm)
-	, mAPIVersion(0)
-	, mRefCount(0)
-	, mbHasStaticAbout(false)
-	, mbHasStaticConfigure(false)
+  : mpExtModule(pfm), mAPIVersion(0), mRefCount(0), mbHasStaticAbout(false), mbHasStaticConfigure(false)
+{}
+
+FilterDefinitionInstance::~FilterDefinitionInstance()
 {
+  VDASSERT(mRefCount == 0);
 }
 
-FilterDefinitionInstance::~FilterDefinitionInstance() {
-	VDASSERT(mRefCount==0);
+void FilterDefinitionInstance::Assign(const FilterDefinition &def, int len)
+{
+  memset(&mDef, 0, sizeof mDef);
+  memset(&mFilterModDef, 0, sizeof mFilterModDef);
+  memcpy(&mDef, &def, std::min<size_t>(sizeof mDef, len));
+
+  mName        = def.name;
+  mAuthor      = def.maker ? def.maker : "(internal)";
+  mDescription = def.desc;
+
+  if (mpExtModule)
+    mDef._module = const_cast<VDXFilterModule *>(&mpExtModule->GetFilterModuleInfo());
+  else
+    mDef._module = NULL;
+
+  mAPIVersion = mpExtModule ? mpExtModule->GetVideoFilterAPIVersion() : VIRTUALDUB_FILTERDEF_VERSION;
+
+  if (mAPIVersion >= 16)
+  {
+    mDef.stringProc = NULL;
+    mDef.copyProc   = NULL;
+  }
+  else
+  {
+    mDef.mSourceCountLowMinus1  = 0;
+    mDef.mSourceCountHighMinus1 = 0;
+  }
+
+  mbHasStaticAbout     = (mDef.mpStaticAboutProc != NULL);
+  mbHasStaticConfigure = (mDef.mpStaticConfigureProc != NULL);
 }
 
-void FilterDefinitionInstance::Assign(const FilterDefinition& def, int len) {
-	memset(&mDef, 0, sizeof mDef);
-	memset(&mFilterModDef, 0, sizeof mFilterModDef);
-	memcpy(&mDef, &def, std::min<size_t>(sizeof mDef, len));
-
-	mName			= def.name;
-	mAuthor			= def.maker ? def.maker : "(internal)";
-	mDescription	= def.desc;
-
-	if (mpExtModule)
-		mDef._module = const_cast<VDXFilterModule *>(&mpExtModule->GetFilterModuleInfo());
-	else
-		mDef._module = NULL;
-
-	mAPIVersion = mpExtModule ? mpExtModule->GetVideoFilterAPIVersion() : VIRTUALDUB_FILTERDEF_VERSION;
-
-	if (mAPIVersion >= 16) {
-		mDef.stringProc = NULL;
-		mDef.copyProc = NULL;
-	} else {
-		mDef.mSourceCountLowMinus1 = 0;
-		mDef.mSourceCountHighMinus1 = 0;
-	}
-
-	mbHasStaticAbout = (mDef.mpStaticAboutProc != NULL);
-	mbHasStaticConfigure = (mDef.mpStaticConfigureProc != NULL);
+void FilterDefinitionInstance::AssignFilterMod(const FilterModDefinition &def, int len)
+{
+  memset(&mFilterModDef, 0, sizeof mFilterModDef);
+  memcpy(&mFilterModDef, &def, std::min<size_t>(sizeof mFilterModDef, len));
 }
 
-void FilterDefinitionInstance::AssignFilterMod(const FilterModDefinition& def, int len) {
-	memset(&mFilterModDef, 0, sizeof mFilterModDef);
-	memcpy(&mFilterModDef, &def, std::min<size_t>(sizeof mFilterModDef, len));
+void FilterDefinitionInstance::Deactivate()
+{
+  memset(&mDef, 0, sizeof mDef);
+  memset(&mFilterModDef, 0, sizeof mFilterModDef);
 }
 
-void FilterDefinitionInstance::Deactivate() {
-	memset(&mDef, 0, sizeof mDef);
-	memset(&mFilterModDef, 0, sizeof mFilterModDef);
+const FilterDefinition &FilterDefinitionInstance::Attach()
+{
+  VDASSERT(mAPIVersion);
+
+  if (mpExtModule)
+    mpExtModule->Lock();
+
+  ++mRefCount;
+
+  return mDef;
 }
 
-const FilterDefinition& FilterDefinitionInstance::Attach() {
-	VDASSERT(mAPIVersion);
+void FilterDefinitionInstance::Detach()
+{
+  VDASSERT(mRefCount.dec() >= 0);
 
-	if (mpExtModule)
-		mpExtModule->Lock();
-
-	++mRefCount;
-
-	return mDef;
-}
-
-void FilterDefinitionInstance::Detach() {
-	VDASSERT(mRefCount.dec() >= 0);
-
-	if (mpExtModule)
-		mpExtModule->Unlock();
+  if (mpExtModule)
+    mpExtModule->Unlock();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -129,102 +133,124 @@ void FilterDefinitionInstance::Detach() {
 //
 ///////////////////////////////////////////////////////////////////////////
 
-static ListAlloc<FilterDefinitionInstance>	g_filterDefs;
+static ListAlloc<FilterDefinitionInstance> g_filterDefs;
 
-FilterDefinitionInstance *FilterBaseAdd(VDXFilterModule *fm, FilterDefinition *pfd, int fd_len) {
-	VDExternalModule *pExtModule = VDGetExternalModuleByFilterModule(fm);
+FilterDefinitionInstance *FilterBaseAdd(VDXFilterModule *fm, FilterDefinition *pfd, int fd_len)
+{
+  VDExternalModule *pExtModule = VDGetExternalModuleByFilterModule(fm);
 
-	if (pExtModule) {
-		List2<FilterDefinitionInstance>::fwit it2(g_filterDefs.begin());
+  if (pExtModule)
+  {
+    List2<FilterDefinitionInstance>::fwit it2(g_filterDefs.begin());
 
-		for(; it2; ++it2) {
-			FilterDefinitionInstance& fdi = *it2;
+    for (; it2; ++it2)
+    {
+      FilterDefinitionInstance &fdi = *it2;
 
-			if (fdi.GetModule() == pExtModule && fdi.GetName() == pfd->name) {
-				fdi.Assign(*pfd, fd_len);
-				return &fdi;
-			}
-		}
+      if (fdi.GetModule() == pExtModule && fdi.GetName() == pfd->name)
+      {
+        fdi.Assign(*pfd, fd_len);
+        return &fdi;
+      }
+    }
 
-		vdautoptr<FilterDefinitionInstance> pfdi(new FilterDefinitionInstance(pExtModule));
-		pfdi->Assign(*pfd, fd_len);
+    vdautoptr<FilterDefinitionInstance> pfdi(new FilterDefinitionInstance(pExtModule));
+    pfdi->Assign(*pfd, fd_len);
 
-		FilterDefinitionInstance* fdi = pfdi;
-		g_filterDefs.AddTail(pfdi.release());
+    FilterDefinitionInstance *fdi = pfdi;
+    g_filterDefs.AddTail(pfdi.release());
 
-		return fdi;
-	}
+    return fdi;
+  }
 
-	return NULL;
+  return NULL;
 }
 
-FilterDefinition *FilterAdd(VDXFilterModule *fm, FilterDefinition *pfd, int fd_len) {
-	FilterDefinitionInstance* fdi = FilterBaseAdd(fm,pfd,fd_len);
-	if(fdi) return const_cast<FilterDefinition *>(&fdi->GetDef());
-	return NULL;
+FilterDefinition *FilterAdd(VDXFilterModule *fm, FilterDefinition *pfd, int fd_len)
+{
+  FilterDefinitionInstance *fdi = FilterBaseAdd(fm, pfd, fd_len);
+  if (fdi)
+    return const_cast<FilterDefinition *>(&fdi->GetDef());
+  return NULL;
 }
 
-FilterDefinition *FilterModAdd(VDXFilterModule *fm, FilterDefinition *pfd, int fd_len, FilterModDefinition *pfm, int fm_len) {
-	FilterDefinitionInstance* fdi = FilterBaseAdd(fm,pfd,fd_len);
-	if(fdi){
-		fdi->AssignFilterMod(*pfm, fm_len);
-		return const_cast<FilterDefinition *>(&fdi->GetDef());
-	}
-	return NULL;
+FilterDefinition *FilterModAdd(
+  VDXFilterModule *    fm,
+  FilterDefinition *   pfd,
+  int                  fd_len,
+  FilterModDefinition *pfm,
+  int                  fm_len)
+{
+  FilterDefinitionInstance *fdi = FilterBaseAdd(fm, pfd, fd_len);
+  if (fdi)
+  {
+    fdi->AssignFilterMod(*pfm, fm_len);
+    return const_cast<FilterDefinition *>(&fdi->GetDef());
+  }
+  return NULL;
 }
 
-void FilterAddBuiltin(const FilterDefinition *pfd) {
-	VDASSERT(!pfd->stringProc || pfd->stringProc2);
-	VDASSERT(!pfd->copyProc || pfd->copyProc2);
+void FilterAddBuiltin(const FilterDefinition *pfd)
+{
+  VDASSERT(!pfd->stringProc || pfd->stringProc2);
+  VDASSERT(!pfd->copyProc || pfd->copyProc2);
 
-	vdautoptr<FilterDefinitionInstance> fdi(new FilterDefinitionInstance(NULL));
-	fdi->Assign(*pfd, sizeof(FilterDefinition));
-	if (pfd->fm) fdi->AssignFilterMod(*pfd->fm, sizeof(FilterModDefinition));
+  vdautoptr<FilterDefinitionInstance> fdi(new FilterDefinitionInstance(NULL));
+  fdi->Assign(*pfd, sizeof(FilterDefinition));
+  if (pfd->fm)
+    fdi->AssignFilterMod(*pfd->fm, sizeof(FilterModDefinition));
 
-	g_filterDefs.AddTail(fdi.release());
+  g_filterDefs.AddTail(fdi.release());
 }
 
-void FilterRemove(FilterDefinition *fd) {
-	// These calls are now ignored.
+void FilterRemove(FilterDefinition *fd)
+{
+  // These calls are now ignored.
 }
 
-void VDFilterRemoveAll(VDExternalModule *module) {
-	List2<FilterDefinitionInstance>::fwit it(g_filterDefs.begin());
+void VDFilterRemoveAll(VDExternalModule *module)
+{
+  List2<FilterDefinitionInstance>::fwit it(g_filterDefs.begin());
 
-	for(; it; ++it) {
-		FilterDefinitionInstance& fd = *it;
+  for (; it; ++it)
+  {
+    FilterDefinitionInstance &fd = *it;
 
-		if (fd.GetModule() == module)
-			fd.Deactivate();
-	}
+    if (fd.GetModule() == module)
+      fd.Deactivate();
+  }
 }
 
-void FilterEnumerateFilters(std::list<FilterBlurb>& blurbs) {
-	List2<FilterDefinitionInstance>::fwit it(g_filterDefs.begin());
+void FilterEnumerateFilters(std::list<FilterBlurb> &blurbs)
+{
+  List2<FilterDefinitionInstance>::fwit it(g_filterDefs.begin());
 
-	for(; it; ++it) {
-		FilterDefinitionInstance& fd = *it;
+  for (; it; ++it)
+  {
+    FilterDefinitionInstance &fd = *it;
 
-		blurbs.push_back(FilterBlurb());
-		FilterBlurb& fb = blurbs.back();
+    blurbs.push_back(FilterBlurb());
+    FilterBlurb &fb = blurbs.back();
 
-		fb.key			= &fd;
-		fb.name			= fd.GetName();
-		fb.author		= fd.GetAuthor();
-		fb.description	= fd.GetDescription();
+    fb.key         = &fd;
+    fb.name        = fd.GetName();
+    fb.author      = fd.GetAuthor();
+    fb.description = fd.GetDescription();
 
-		VDExternalModule	*module = fd.GetModule();
-		if (module)
-			fb.module = module->GetFilename();
-	}
+    VDExternalModule *module = fd.GetModule();
+    if (module)
+      fb.module = module->GetFilename();
+  }
 }
 
-void VDEnumerateFilters(vdfastvector<FilterDefinitionInstance *>& defs) {
-	List2<FilterDefinitionInstance>::fwit it(g_filterDefs.begin());
+void VDEnumerateFilters(vdfastvector<FilterDefinitionInstance *> &defs)
+{
+  List2<FilterDefinitionInstance>::fwit it(g_filterDefs.begin());
 
-	for(; it; ++it) {
-		FilterDefinitionInstance& fd = *it;
+  for (; it; ++it)
+  {
+    FilterDefinitionInstance &fd = *it;
 
-		defs.push_back(&fd);
-	}
+    defs.push_back(&fd);
+  }
 }

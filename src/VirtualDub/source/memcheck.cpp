@@ -90,20 +90,24 @@ void operator delete(void *block) {
 
 #else
 
-void *allocmem(size_t siz) {
-	return malloc(siz);
+void *allocmem(size_t siz)
+{
+  return malloc(siz);
 }
 
-void freemem(void *block) {
-	free(block);
+void freemem(void *block)
+{
+  free(block);
 }
 
-void *reallocmem(void *block, size_t siz) {
-	return realloc(block, siz);
+void *reallocmem(void *block, size_t siz)
+{
+  return realloc(block, siz);
 }
 
-void *callocmem(size_t s1, size_t s2) {
-	return calloc(s1, s2);
+void *callocmem(size_t s1, size_t s2)
+{
+  return calloc(s1, s2);
 }
 
 #endif

@@ -19,7 +19,7 @@
 #define f_VD2_FILTERFRAMEVIDEOSOURCE_H
 
 #ifdef _MSC_VER
-	#pragma once
+#pragma once
 #endif
 
 #include <vd2/Kasumi/pixmap.h>
@@ -29,34 +29,35 @@
 class IVDVideoSource;
 class IVDStreamSource;
 
-class VDFilterFrameVideoSource : public VDFilterFrameManualSource {
-	VDFilterFrameVideoSource(const VDFilterFrameVideoSource&);
-	VDFilterFrameVideoSource& operator=(const VDFilterFrameVideoSource&);
+class VDFilterFrameVideoSource : public VDFilterFrameManualSource
+{
+  VDFilterFrameVideoSource(const VDFilterFrameVideoSource &);
+  VDFilterFrameVideoSource &operator=(const VDFilterFrameVideoSource &);
 
 public:
-	VDFilterFrameVideoSource();
-	~VDFilterFrameVideoSource();
+  VDFilterFrameVideoSource();
+  ~VDFilterFrameVideoSource();
 
-	void Init(IVDVideoSource *vs, const VDPixmapLayout& layout);
+  void Init(IVDVideoSource *vs, const VDPixmapLayout &layout);
 
-	RunResult RunRequests(const uint32 *batchNumberLimit, int index);
-	bool IsPreroll();
+  RunResult RunRequests(const uint32 *batchNumberLimit, int index);
+  bool      IsPreroll();
 
-public:	// IVDFilterFrameSource
-	virtual sint64 GetNearestUniqueFrame(sint64 outputFrame);
+public: // IVDFilterFrameSource
+  virtual sint64 GetNearestUniqueFrame(sint64 outputFrame);
 
 protected:
-	IVDVideoSource *mpVS;
-	IVDStreamSource *mpSS;
-	VDFilterFrameRequest *mpRequest;
+  IVDVideoSource *      mpVS;
+  IVDStreamSource *     mpSS;
+  VDFilterFrameRequest *mpRequest;
 
-	uint32		mDecodePadding;
-	VDPosition	mTargetSample;
-	bool		mbFirstSample;
-	bool		mbPreroll;
+  uint32     mDecodePadding;
+  VDPosition mTargetSample;
+  bool       mbFirstSample;
+  bool       mbPreroll;
 
-	vdfastvector<uint8> mBuffer;
-	vdautoptr<IVDPixmapBlitter>	mpBlitter;
+  vdfastvector<uint8>         mBuffer;
+  vdautoptr<IVDPixmapBlitter> mpBlitter;
 };
 
 #endif

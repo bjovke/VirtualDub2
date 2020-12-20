@@ -18,43 +18,44 @@
 #include <stdafx.h>
 #include <FilterChainDesc.h>
 
-VDFilterChainEntry::VDFilterChainEntry() {
+VDFilterChainEntry::VDFilterChainEntry() {}
+
+VDFilterChainDesc::VDFilterChainDesc() {}
+
+VDFilterChainDesc::VDFilterChainDesc(const VDFilterChainDesc &src)
+{
+  for (Entries::const_iterator it(mEntries.begin()), itEnd(mEntries.end()); it != itEnd; ++it)
+  {
+    VDFilterChainEntry *ent = new VDFilterChainEntry(**it);
+
+    ent->AddRef();
+    mEntries.push_back(ent);
+  }
 }
 
-VDFilterChainDesc::VDFilterChainDesc() {
+VDFilterChainDesc::~VDFilterChainDesc()
+{
+  Clear();
 }
 
-VDFilterChainDesc::VDFilterChainDesc(const VDFilterChainDesc& src) {
-	for(Entries::const_iterator it(mEntries.begin()), itEnd(mEntries.end());
-		it != itEnd;
-		++it)
-	{
-		VDFilterChainEntry *ent = new VDFilterChainEntry(**it);
-
-		ent->AddRef();
-		mEntries.push_back(ent);
-	}
+bool VDFilterChainDesc::IsEmpty() const
+{
+  return mEntries.empty();
 }
 
-VDFilterChainDesc::~VDFilterChainDesc() {
-	Clear();
+void VDFilterChainDesc::Clear()
+{
+  while (!mEntries.empty())
+  {
+    VDFilterChainEntry *ent = mEntries.back();
+    mEntries.pop_back();
+
+    ent->Release();
+  }
 }
 
-bool VDFilterChainDesc::IsEmpty() const {
-	return mEntries.empty();
+void VDFilterChainDesc::AddEntry(VDFilterChainEntry *ent)
+{
+  mEntries.push_back(ent);
+  ent->AddRef();
 }
-
-void VDFilterChainDesc::Clear() {
-	while(!mEntries.empty()) {
-		VDFilterChainEntry *ent = mEntries.back();
-		mEntries.pop_back();
-
-		ent->Release();
-	}
-}
-
-void VDFilterChainDesc::AddEntry(VDFilterChainEntry *ent) {
-	mEntries.push_back(ent);
-	ent->AddRef();
-}
-

@@ -19,20 +19,20 @@
 #define f_FILTER_H
 
 #ifdef _MSC_VER
-	#pragma once
+#pragma once
 #endif
 
 #include <vd2/plugin/vdvideofilt.h>
 
-typedef VDXFilterDefinition		FilterDefinition;
-typedef VDXFilterActivation		FilterActivation;
-typedef VDXFilterFunctions		FilterFunctions;
-typedef IVDXScriptInterpreter	IScriptInterpreter;
-typedef VDXScriptValue			CScriptValue;
-typedef VDXScriptObject			CScriptObject;
-typedef VDXScriptFunctionDef	ScriptFunctionDef;
-typedef VDXScriptFunctionPtr	ScriptFunctionPtr;
-typedef IVDXFilterPreview		IFilterPreview;
-typedef IVDXFilterPreview2		IVDFilterPreview2;
+typedef VDXFilterDefinition   FilterDefinition;
+typedef VDXFilterActivation   FilterActivation;
+typedef VDXFilterFunctions    FilterFunctions;
+typedef IVDXScriptInterpreter IScriptInterpreter;
+typedef VDXScriptValue        CScriptValue;
+typedef VDXScriptObject       CScriptObject;
+typedef VDXScriptFunctionDef  ScriptFunctionDef;
+typedef VDXScriptFunctionPtr  ScriptFunctionPtr;
+typedef IVDXFilterPreview     IFilterPreview;
+typedef IVDXFilterPreview2    IVDFilterPreview2;
 
 #endif

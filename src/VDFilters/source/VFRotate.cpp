@@ -23,213 +23,249 @@
 
 extern HINSTANCE g_hInst;
 
-enum {
-	MODE_LEFT90 = 0,
-	MODE_RIGHT90 = 1,
-	MODE_180 = 2
+enum
+{
+  MODE_LEFT90  = 0,
+  MODE_RIGHT90 = 1,
+  MODE_180     = 2
 };
 
-const wchar_t *const g_szMode[]={
-	L"left 90\u00b0",
-	L"right 90\u00b0",
-	L"180\u00b0",
+const wchar_t *const g_szMode[] = {
+  L"left 90\u00b0",
+  L"right 90\u00b0",
+  L"180\u00b0",
 };
 
-typedef struct MyFilterData {
-	int mode;
+typedef struct MyFilterData
+{
+  int mode;
 } MyFilterData;
 
 ///////////////////////////////////////////////////////////////////////////
 
-static int rotate_run(const VDXFilterActivation *fa, const VDXFilterFunctions *ff) {
-	MyFilterData *mfd = (MyFilterData *)fa->filter_data;
-	uint32 *src, *dst, *dst0;
-	uint32 w0 = fa->src.w, w;
-	uint32 h = fa->src.h;
-	ptrdiff_t dpitch = fa->dst.pitch;
-	ptrdiff_t dmodulo = fa->dst.modulo;
-	ptrdiff_t smodulo = fa->src.modulo;
+static int rotate_run(const VDXFilterActivation *fa, const VDXFilterFunctions *ff)
+{
+  MyFilterData *mfd = (MyFilterData *)fa->filter_data;
+  uint32 *      src, *dst, *dst0;
+  uint32        w0      = fa->src.w, w;
+  uint32        h       = fa->src.h;
+  ptrdiff_t     dpitch  = fa->dst.pitch;
+  ptrdiff_t     dmodulo = fa->dst.modulo;
+  ptrdiff_t     smodulo = fa->src.modulo;
 
-	switch(mfd->mode) {
-	case MODE_LEFT90:
-		src = fa->src.data;
-		dst0 = fa->dst.data + fa->dst.w;
+  switch (mfd->mode)
+  {
+    case MODE_LEFT90:
+      src  = fa->src.data;
+      dst0 = fa->dst.data + fa->dst.w;
 
-		do {
-			dst = --dst0;
-			w = w0;
-			do {
-				*dst = *src++;
-				dst = (uint32*)((char *)dst + dpitch);
-			} while(--w);
+      do
+      {
+        dst = --dst0;
+        w   = w0;
+        do
+        {
+          *dst = *src++;
+          dst  = (uint32 *)((char *)dst + dpitch);
+        } while (--w);
 
-			src = (uint32*)((char *)src + smodulo);
-		} while(--h);
-		break;
+        src = (uint32 *)((char *)src + smodulo);
+      } while (--h);
+      break;
 
-	case MODE_RIGHT90:
-		src = fa->src.data;
-		dst0 = (uint32 *)((char *)fa->dst.data + fa->dst.pitch*(fa->dst.h-1));
+    case MODE_RIGHT90:
+      src  = fa->src.data;
+      dst0 = (uint32 *)((char *)fa->dst.data + fa->dst.pitch * (fa->dst.h - 1));
 
-		do {
-			dst = dst0++;
-			w = w0;
-			do {
-				*dst = *src++;
-				dst = (uint32*)((char *)dst - dpitch);
-			} while(--w);
+      do
+      {
+        dst = dst0++;
+        w   = w0;
+        do
+        {
+          *dst = *src++;
+          dst  = (uint32 *)((char *)dst - dpitch);
+        } while (--w);
 
-			src = (uint32*)((char *)src + smodulo);
-		} while(--h);
-		break;
+        src = (uint32 *)((char *)src + smodulo);
+      } while (--h);
+      break;
 
-	case MODE_180:
-		src = fa->src.data;
-		dst = (uint32 *)((char *)fa->dst.data + fa->dst.pitch*(fa->dst.h-1) + fa->dst.w*4 - 4);
+    case MODE_180:
+      src = fa->src.data;
+      dst = (uint32 *)((char *)fa->dst.data + fa->dst.pitch * (fa->dst.h - 1) + fa->dst.w * 4 - 4);
 
-		h>>=1;
-		if (h) do {
-			w = w0;
-			do {
-				uint32 a, b;
+      h >>= 1;
+      if (h)
+        do
+        {
+          w = w0;
+          do
+          {
+            uint32 a, b;
 
-				a = *src;
-				b = *dst;
+            a = *src;
+            b = *dst;
 
-				*src++ = b;
-				*dst-- = a;
-			} while(--w);
+            *src++ = b;
+            *dst-- = a;
+          } while (--w);
 
-			src = (uint32*)((char *)src + smodulo);
-			dst = (uint32*)((char *)dst - dmodulo);
-		} while(--h);
+          src = (uint32 *)((char *)src + smodulo);
+          dst = (uint32 *)((char *)dst - dmodulo);
+        } while (--h);
 
-		// if there is an odd line, flip half of it
+      // if there is an odd line, flip half of it
 
-		if (fa->src.h & 1) {
-			w = w0>>1;
-			if (w) do {
-				uint32 a, b;
+      if (fa->src.h & 1)
+      {
+        w = w0 >> 1;
+        if (w)
+          do
+          {
+            uint32 a, b;
 
-				a = *src;
-				b = *dst;
+            a = *src;
+            b = *dst;
 
-				*src++ = b;
-				*dst-- = a;
-			} while(--w);
-		}
-		break;
-	}
-	return 0;
+            *src++ = b;
+            *dst-- = a;
+          } while (--w);
+      }
+      break;
+  }
+  return 0;
 }
 
-static long rotate_param(VDXFilterActivation *fa, const VDXFilterFunctions *ff) {
-	const VDXPixmapLayout& pxlsrc = *fa->src.mpPixmapLayout;
-	VDXPixmapLayout& pxldst = *fa->dst.mpPixmapLayout;
+static long rotate_param(VDXFilterActivation *fa, const VDXFilterFunctions *ff)
+{
+  const VDXPixmapLayout &pxlsrc = *fa->src.mpPixmapLayout;
+  VDXPixmapLayout &      pxldst = *fa->dst.mpPixmapLayout;
 
-	if (pxlsrc.format != nsVDXPixmap::kPixFormat_XRGB8888)
-		return FILTERPARAM_NOT_SUPPORTED;
+  if (pxlsrc.format != nsVDXPixmap::kPixFormat_XRGB8888)
+    return FILTERPARAM_NOT_SUPPORTED;
 
-	MyFilterData *mfd = (MyFilterData *)fa->filter_data;
+  MyFilterData *mfd = (MyFilterData *)fa->filter_data;
 
-	if (mfd->mode == MODE_180) {
-		pxldst.pitch = pxlsrc.pitch;
-		return FILTERPARAM_PURE_TRANSFORM | FILTERPARAM_SUPPORTS_ALTFORMATS;
-	}
+  if (mfd->mode == MODE_180)
+  {
+    pxldst.pitch = pxlsrc.pitch;
+    return FILTERPARAM_PURE_TRANSFORM | FILTERPARAM_SUPPORTS_ALTFORMATS;
+  }
 
-	pxldst.w = pxlsrc.h;
-	pxldst.h = pxlsrc.w;
+  pxldst.w = pxlsrc.h;
+  pxldst.h = pxlsrc.w;
 
-	return FILTERPARAM_SWAP_BUFFERS | FILTERPARAM_PURE_TRANSFORM | FILTERPARAM_SUPPORTS_ALTFORMATS;
+  return FILTERPARAM_SWAP_BUFFERS | FILTERPARAM_PURE_TRANSFORM | FILTERPARAM_SUPPORTS_ALTFORMATS;
 }
 
-static INT_PTR APIENTRY rotateDlgProc( HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
-    switch (message)
-    {
-        case WM_INITDIALOG:
-			{
-				MyFilterData *mfd = (MyFilterData *)lParam;
-				SetWindowLongPtr(hDlg, DWLP_USER, (LPARAM)mfd);
+static INT_PTR APIENTRY rotateDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+  switch (message)
+  {
+    case WM_INITDIALOG: {
+      MyFilterData *mfd = (MyFilterData *)lParam;
+      SetWindowLongPtr(hDlg, DWLP_USER, (LPARAM)mfd);
 
-				switch(mfd->mode) {
-				case MODE_LEFT90:	CheckDlgButton(hDlg, IDC_ROTATE_LEFT, BST_CHECKED); break;
-				case MODE_RIGHT90:	CheckDlgButton(hDlg, IDC_ROTATE_RIGHT, BST_CHECKED); break;
-				case MODE_180:		CheckDlgButton(hDlg, IDC_ROTATE_180, BST_CHECKED); break;
-				}
-			}
-            return (TRUE);
-
-        case WM_COMMAND:                      
-            if (LOWORD(wParam) == IDOK) {
-				MyFilterData *mfd = (struct MyFilterData *)GetWindowLongPtr(hDlg, DWLP_USER);
-
-				if (IsDlgButtonChecked(hDlg, IDC_ROTATE_LEFT)) mfd->mode = MODE_LEFT90;
-				if (IsDlgButtonChecked(hDlg, IDC_ROTATE_RIGHT)) mfd->mode = MODE_RIGHT90;
-				if (IsDlgButtonChecked(hDlg, IDC_ROTATE_180)) mfd->mode = MODE_180;
-
-				EndDialog(hDlg, 0);
-				return TRUE;
-			} else if (LOWORD(wParam) == IDCANCEL) {
-                EndDialog(hDlg, 1);  
-                return TRUE;
-            }
-            break;
+      switch (mfd->mode)
+      {
+        case MODE_LEFT90:
+          CheckDlgButton(hDlg, IDC_ROTATE_LEFT, BST_CHECKED);
+          break;
+        case MODE_RIGHT90:
+          CheckDlgButton(hDlg, IDC_ROTATE_RIGHT, BST_CHECKED);
+          break;
+        case MODE_180:
+          CheckDlgButton(hDlg, IDC_ROTATE_180, BST_CHECKED);
+          break;
+      }
     }
-    return FALSE;
+      return (TRUE);
+
+    case WM_COMMAND:
+      if (LOWORD(wParam) == IDOK)
+      {
+        MyFilterData *mfd = (struct MyFilterData *)GetWindowLongPtr(hDlg, DWLP_USER);
+
+        if (IsDlgButtonChecked(hDlg, IDC_ROTATE_LEFT))
+          mfd->mode = MODE_LEFT90;
+        if (IsDlgButtonChecked(hDlg, IDC_ROTATE_RIGHT))
+          mfd->mode = MODE_RIGHT90;
+        if (IsDlgButtonChecked(hDlg, IDC_ROTATE_180))
+          mfd->mode = MODE_180;
+
+        EndDialog(hDlg, 0);
+        return TRUE;
+      }
+      else if (LOWORD(wParam) == IDCANCEL)
+      {
+        EndDialog(hDlg, 1);
+        return TRUE;
+      }
+      break;
+  }
+  return FALSE;
 }
 
-static int rotate_config(VDXFilterActivation *fa, const VDXFilterFunctions *ff, VDXHWND hWnd) {
-	return DialogBoxParam(g_hInst, MAKEINTRESOURCE(IDD_FILTER_ROTATE), (HWND)hWnd, rotateDlgProc, (LPARAM)fa->filter_data);
+static int rotate_config(VDXFilterActivation *fa, const VDXFilterFunctions *ff, VDXHWND hWnd)
+{
+  return DialogBoxParam(
+    g_hInst, MAKEINTRESOURCE(IDD_FILTER_ROTATE), (HWND)hWnd, rotateDlgProc, (LPARAM)fa->filter_data);
 }
 
-static void rotate_string2(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, char *buf, int maxlen) {
-	MyFilterData *mfd = (MyFilterData *)fa->filter_data;
+static void rotate_string2(const VDXFilterActivation *fa, const VDXFilterFunctions *ff, char *buf, int maxlen)
+{
+  MyFilterData *mfd = (MyFilterData *)fa->filter_data;
 
-	_snprintf(buf, maxlen, " (%s)", VDTextWToA(g_szMode[mfd->mode]).c_str());
+  _snprintf(buf, maxlen, " (%s)", VDTextWToA(g_szMode[mfd->mode]).c_str());
 }
 
-static void rotate_script_config(IVDXScriptInterpreter *isi, void *lpVoid, VDXScriptValue *argv, int argc) {
-	VDXFilterActivation *fa = (VDXFilterActivation *)lpVoid;
-	MyFilterData *mfd = (MyFilterData *)fa->filter_data;
+static void rotate_script_config(IVDXScriptInterpreter *isi, void *lpVoid, VDXScriptValue *argv, int argc)
+{
+  VDXFilterActivation *fa  = (VDXFilterActivation *)lpVoid;
+  MyFilterData *       mfd = (MyFilterData *)fa->filter_data;
 
-	mfd->mode	= argv[0].asInt();
+  mfd->mode = argv[0].asInt();
 
-	if (mfd->mode < 0 || mfd->mode > 2)
-		mfd->mode = 0;
+  if (mfd->mode < 0 || mfd->mode > 2)
+    mfd->mode = 0;
 }
 
-static VDXScriptFunctionDef rotate_func_defs[]={
-	{ (VDXScriptFunctionPtr)rotate_script_config, "Config", "0i" },
-	{ NULL },
+static VDXScriptFunctionDef rotate_func_defs[] = {
+  {(VDXScriptFunctionPtr)rotate_script_config, "Config", "0i"},
+  {NULL},
 };
 
-static VDXScriptObject rotate_obj={
-	NULL, rotate_func_defs
-};
+static VDXScriptObject rotate_obj = {NULL, rotate_func_defs};
 
-static bool rotate_script_line(VDXFilterActivation *fa, const VDXFilterFunctions *ff, char *buf, int buflen) {
-	MyFilterData *mfd = (MyFilterData *)fa->filter_data;
+static bool rotate_script_line(VDXFilterActivation *fa, const VDXFilterFunctions *ff, char *buf, int buflen)
+{
+  MyFilterData *mfd = (MyFilterData *)fa->filter_data;
 
-	_snprintf(buf, buflen, "Config(%d)", mfd->mode);
+  _snprintf(buf, buflen, "Config(%d)", mfd->mode);
 
-	return true;
+  return true;
 }
 
-extern const VDXFilterDefinition g_VDVFRotate={
-	0,0,NULL,
-	"rotate",
-	"Rotates an image by 90, 180, or 270 degrees.",
-	NULL,NULL,
-	sizeof(MyFilterData),
-	NULL,NULL,
-	rotate_run,
-	rotate_param,
-	rotate_config,
-	NULL,
-	NULL,
-	NULL,
+extern const VDXFilterDefinition g_VDVFRotate = {
+  0,
+  0,
+  NULL,
+  "rotate",
+  "Rotates an image by 90, 180, or 270 degrees.",
+  NULL,
+  NULL,
+  sizeof(MyFilterData),
+  NULL,
+  NULL,
+  rotate_run,
+  rotate_param,
+  rotate_config,
+  NULL,
+  NULL,
+  NULL,
 
-	&rotate_obj,
-	rotate_script_line,
-	rotate_string2,
+  &rotate_obj,
+  rotate_script_line,
+  rotate_string2,
 };

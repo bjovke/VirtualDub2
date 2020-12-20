@@ -25,29 +25,35 @@
 #include <vd2/system/vdstl.h>
 
 long MulDivTrunc(long a, long b, long c);
-int NearestLongValue(long v, const long *array, int array_size);
+int  NearestLongValue(long v, const long *array, int array_size);
 unsigned __stdcall MulDivUnsigned(unsigned a, unsigned b, unsigned c);
 
 // only works properly when d1,d2>0!!
 
-long inline int64divto32(__int64 d1, __int64 d2) {
-	return d2?(long)((d1+d2/2)/d2):0;
+long inline int64divto32(__int64 d1, __int64 d2)
+{
+  return d2 ? (long)((d1 + d2 / 2) / d2) : 0;
 }
 
-__int64 inline int64divround(__int64 d1, __int64 d2) {
-	return d2?((d1+d2/2)/d2):0;
+__int64 inline int64divround(__int64 d1, __int64 d2)
+{
+  return d2 ? ((d1 + d2 / 2) / d2) : 0;
 }
 
-__int64 inline int64divroundup(__int64 d1, __int64 d2) {
-	return d2?((d1+d2-1)/d2):0;
+__int64 inline int64divroundup(__int64 d1, __int64 d2)
+{
+  return d2 ? ((d1 + d2 - 1) / d2) : 0;
 }
 
-bool isEqualFOURCC(FOURCC fccA, FOURCC fccB);
-bool isValidFOURCC(FOURCC fcc);
+bool   isEqualFOURCC(FOURCC fccA, FOURCC fccB);
+bool   isValidFOURCC(FOURCC fcc);
 FOURCC toupperFOURCC(FOURCC fcc);
 
-VDStringA VDEncodeScriptString(const VDStringSpanA& sa);
-VDStringA VDEncodeScriptString(const VDStringW& sw);
-inline VDStringA VDEncodeScriptString(const char* sa){ return VDEncodeScriptString(VDStringSpanA(sa)); }
+VDStringA        VDEncodeScriptString(const VDStringSpanA &sa);
+VDStringA        VDEncodeScriptString(const VDStringW &sw);
+inline VDStringA VDEncodeScriptString(const char *sa)
+{
+  return VDEncodeScriptString(VDStringSpanA(sa));
+}
 
 #endif

@@ -25,19 +25,21 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-struct VDCaptureAudioCompStatus {
+struct VDCaptureAudioCompStatus
+{
 };
 
-class VDINTERFACE IVDCaptureAudioCompFilter : public IVDCaptureDriverCallback {
+class VDINTERFACE IVDCaptureAudioCompFilter : public IVDCaptureDriverCallback
+{
 public:
-	virtual ~IVDCaptureAudioCompFilter() {}
+  virtual ~IVDCaptureAudioCompFilter() {}
 
-	virtual void SetChildCallback(IVDCaptureDriverCallback *pChild) = 0;
-	virtual void SetSourceSplit(bool enable) = 0;
+  virtual void SetChildCallback(IVDCaptureDriverCallback *pChild) = 0;
+  virtual void SetSourceSplit(bool enable)                        = 0;
 
-	virtual void Init(const WAVEFORMATEX *srcFormat, const WAVEFORMATEX *dstFormat, const char *pShortNameHint) = 0;
+  virtual void Init(const WAVEFORMATEX *srcFormat, const WAVEFORMATEX *dstFormat, const char *pShortNameHint) = 0;
 
-	virtual void GetStatus(VDCaptureAudioCompStatus&) = 0;
+  virtual void GetStatus(VDCaptureAudioCompStatus &) = 0;
 };
 
 IVDCaptureAudioCompFilter *VDCreateCaptureAudioCompFilter();

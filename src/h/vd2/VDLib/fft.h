@@ -30,51 +30,53 @@ void VDComputeComplexFFT_DIF(float *p, unsigned bits);
 void VDComputeRealIFFT(float *p, unsigned bits);
 void VDComputeComplexFFT_Reference(float *out, float *in, unsigned bits, double sign = -1);
 
-class VDRealFFT {
+class VDRealFFT
+{
 public:
-	VDRealFFT();
-	VDRealFFT(unsigned bits);
-	~VDRealFFT();
+  VDRealFFT();
+  VDRealFFT(unsigned bits);
+  ~VDRealFFT();
 
-	void Init(unsigned bits);
-	void Shutdown();
+  void Init(unsigned bits);
+  void Shutdown();
 
-	void ComputeRealFFT(float *p);
-	void ComputeRealIFFT(float *p);
+  void ComputeRealFFT(float *p);
+  void ComputeRealIFFT(float *p);
 
 protected:
-	unsigned mBits;
-	uint32 *mpPermuteTable;
-	float *mpWeightTable;
+  unsigned mBits;
+  uint32 * mpPermuteTable;
+  float *  mpWeightTable;
 };
 
-class VDRollingRealFFT {
+class VDRollingRealFFT
+{
 public:
-	VDRollingRealFFT();
-	VDRollingRealFFT(unsigned bits);
-	~VDRollingRealFFT();
+  VDRollingRealFFT();
+  VDRollingRealFFT(unsigned bits);
+  ~VDRollingRealFFT();
 
-	void Init(unsigned bits);
-	void Shutdown();
+  void Init(unsigned bits);
+  void Shutdown();
 
-	void Clear();
-	void Advance(uint32 samples);
-	void CopyIn8U(const uint8 *src, uint32 count, ptrdiff_t stride);
-	void CopyIn16S(const sint16 *src, uint32 count, ptrdiff_t stride);
-	void CopyInF(const float *src, uint32 count, ptrdiff_t stride);
-	void CopyInZ(uint32 count);
+  void Clear();
+  void Advance(uint32 samples);
+  void CopyIn8U(const uint8 *src, uint32 count, ptrdiff_t stride);
+  void CopyIn16S(const sint16 *src, uint32 count, ptrdiff_t stride);
+  void CopyInF(const float *src, uint32 count, ptrdiff_t stride);
+  void CopyInZ(uint32 count);
 
-	void Transform();
+  void Transform();
 
-	float GetPower(int bin) const;
+  float GetPower(int bin) const;
 
 protected:
-	uint32	mPoints;
-	uint32	mBufferLevel;
-	float *mpWindow;
-	float *mpSampleBuffer;
-	float *mpTempArea;
-	VDRealFFT mFFT;
+  uint32    mPoints;
+  uint32    mBufferLevel;
+  float *   mpWindow;
+  float *   mpSampleBuffer;
+  float *   mpTempArea;
+  VDRealFFT mFFT;
 };
 
 #endif

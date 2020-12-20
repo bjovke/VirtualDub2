@@ -20,89 +20,96 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
-class PreferencesMain {
+class PreferencesMain
+{
 public:
-	enum {
-		/*
-		DEPTH_FASTEST	= 0,
-		DEPTH_OUTPUT	= 1,
-		DEPTH_DISPLAY	= 2,
-		DEPTH_16BIT		= 3,
-		DEPTH_24BIT		= 4,
-		DEPTH_32BIT		= 5,
-		*/
+  enum
+  {
+    /*
+    DEPTH_FASTEST	= 0,
+    DEPTH_OUTPUT	= 1,
+    DEPTH_DISPLAY	= 2,
+    DEPTH_16BIT		= 3,
+    DEPTH_24BIT		= 4,
+    DEPTH_32BIT		= 5,
+    */
 
-		// The order of these must match the flags in cpuaccel.h!!
+    // The order of these must match the flags in cpuaccel.h!!
 
-		OPTF_FORCE			= 0x01,
-		OPTF_FPU			= 0x02,
-		OPTF_MMX			= 0x04,
-		OPTF_INTEGER_SSE	= 0x08,		// Athlon MMX extensions or Intel SSE
-		OPTF_SSE			= 0x10,		// Full SSE (PIII)
-		OPTF_SSE2			= 0x20,		// (PIV)
-		OPTF_3DNOW			= 0x40,
-		OPTF_3DNOW_EXT		= 0x80,		// Athlon 3DNow! extensions
-		OPTF_SSE3			= 0x100,	// (Prefs2 only)
-		OPTF_SSSE3			= 0x200,	// (Prefs2 only)
-		OPTF_SSE4_1			= 0x400,	// (Prefs2 only)
-		OPTF_AVX			= 0x800,	// (Prefs2 only)
-	};
+    OPTF_FORCE       = 0x01,
+    OPTF_FPU         = 0x02,
+    OPTF_MMX         = 0x04,
+    OPTF_INTEGER_SSE = 0x08, // Athlon MMX extensions or Intel SSE
+    OPTF_SSE         = 0x10, // Full SSE (PIII)
+    OPTF_SSE2        = 0x20, // (PIV)
+    OPTF_3DNOW       = 0x40,
+    OPTF_3DNOW_EXT   = 0x80,  // Athlon 3DNow! extensions
+    OPTF_SSE3        = 0x100, // (Prefs2 only)
+    OPTF_SSSE3       = 0x200, // (Prefs2 only)
+    OPTF_SSE4_1      = 0x400, // (Prefs2 only)
+    OPTF_AVX         = 0x800, // (Prefs2 only)
+  };
 
-	char	iPreviewPriority;
-	char	deprecated_iPreviewDepth;
-	char	iDubPriority;
-	char	fAttachExtension;
-	char	fOptimizations;		// deprecated
+  char iPreviewPriority;
+  char deprecated_iPreviewDepth;
+  char iDubPriority;
+  char fAttachExtension;
+  char fOptimizations; // deprecated
 };
 
-class PreferencesScene {
+class PreferencesScene
+{
 public:
-	int		iCutThreshold;
-	int		iFadeThreshold;
+  int iCutThreshold;
+  int iFadeThreshold;
 };
 
-class Preferences {
+class Preferences
+{
 public:
-	PreferencesMain	main;
-	PreferencesScene scene;
+  PreferencesMain  main;
+  PreferencesScene scene;
 
-	enum {
-		kDisplayDither16		= 0x01,
-		kDisplayDisableDX		= 0x02,
-		kDisplayUseDXWithTS		= 0x04,
-		kDisplayEnableD3D		= 0x08,
-		kDisplayEnableOpenGL	= 0x10,
-		kDisplayEnableD3DFX		= 0x20,
-		kDisplayEnableVSync		= 0x40
-	};
+  enum
+  {
+    kDisplayDither16     = 0x01,
+    kDisplayDisableDX    = 0x02,
+    kDisplayUseDXWithTS  = 0x04,
+    kDisplayEnableD3D    = 0x08,
+    kDisplayEnableOpenGL = 0x10,
+    kDisplayEnableD3DFX  = 0x20,
+    kDisplayEnableVSync  = 0x40
+  };
 
-	char fDisplay;
-	char fAVIRestrict1Gb;
-	char fNoCorrectLayer3;
+  char fDisplay;
+  char fAVIRestrict1Gb;
+  char fNoCorrectLayer3;
 };
 
-enum {
-	pref_time_hmst,
-	pref_time_hmst_r,
-	pref_time_m,
-	pref_time_m_r,
-	pref_time_s,
-	pref_time_s_r,
-	pref_time_ms,
-	pref_time_ms_r,
-	pref_time_r100,
+enum
+{
+  pref_time_hmst,
+  pref_time_hmst_r,
+  pref_time_m,
+  pref_time_m_r,
+  pref_time_s,
+  pref_time_s_r,
+  pref_time_ms,
+  pref_time_ms_r,
+  pref_time_r100,
 };
 
-enum {
-	PREFERENCES_DISPLAY = 1,
-	PREFERENCES_OPTF = 2,
-	PREFERENCES_TIMELINE = 4,
+enum
+{
+  PREFERENCES_DISPLAY  = 1,
+  PREFERENCES_OPTF     = 2,
+  PREFERENCES_TIMELINE = 4,
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
 #ifndef f_PREFS_CPP
-extern Preferences		g_prefs;
+extern Preferences g_prefs;
 #endif
 
 void LoadPreferences();

@@ -19,7 +19,7 @@
 #define f_FILTERS_H
 
 #ifdef _MSC_VER
-	#pragma once
+#pragma once
 #endif
 
 #include <list>
@@ -37,68 +37,101 @@ class VDExternalModule;
 
 ///////////////////
 
-class FilterDefinitionInstance : public ListNode2<FilterDefinitionInstance> {
+class FilterDefinitionInstance : public ListNode2<FilterDefinitionInstance>
+{
 public:
+  FilterDefinitionInstance(VDExternalModule *pfm);
+  ~FilterDefinitionInstance();
 
-	FilterDefinitionInstance(VDExternalModule *pfm);
-	~FilterDefinitionInstance();
+  void Assign(const FilterDefinition &def, int len);
+  void AssignFilterMod(const FilterModDefinition &def, int len);
+  void Deactivate();
 
-	void Assign(const FilterDefinition& def, int len);
-	void AssignFilterMod(const FilterModDefinition& def, int len);
-	void Deactivate();
+  const FilterDefinition &Attach();
+  void                    Detach();
 
-	const FilterDefinition& Attach();
-	void Detach();
+  int GetAPIVersion() const
+  {
+    return mAPIVersion;
+  }
 
-	int	GetAPIVersion() const { return mAPIVersion; }
+  const FilterDefinition &GetDef() const
+  {
+    return mDef;
+  }
+  const FilterModDefinition &GetFilterModDef() const
+  {
+    return mFilterModDef;
+  }
+  VDExternalModule *GetModule() const
+  {
+    return mpExtModule;
+  }
 
-	const FilterDefinition& GetDef() const { return mDef; }
-	const FilterModDefinition& GetFilterModDef() const { return mFilterModDef; }
-	VDExternalModule	*GetModule() const { return mpExtModule; }
+  const VDStringA &GetName() const
+  {
+    return mName;
+  }
+  const VDStringA &GetAuthor() const
+  {
+    return mAuthor;
+  }
+  const VDStringA &GetDescription() const
+  {
+    return mDescription;
+  }
 
-	const VDStringA&	GetName() const { return mName; }
-	const VDStringA&	GetAuthor() const { return mAuthor; }
-	const VDStringA&	GetDescription() const { return mDescription; }
-
-	bool				HasStaticAbout() const { return mbHasStaticAbout; }
-	bool				HasStaticConfigure() const { return mbHasStaticConfigure; }
+  bool HasStaticAbout() const
+  {
+    return mbHasStaticAbout;
+  }
+  bool HasStaticConfigure() const
+  {
+    return mbHasStaticConfigure;
+  }
 
 protected:
-	VDExternalModule	*mpExtModule;
-	int					mAPIVersion;
-	VDXFilterDefinition	mDef;
-	FilterModDefinition	mFilterModDef;
-	VDAtomicInt			mRefCount;
-	VDStringA			mName;
-	VDStringA			mAuthor;
-	VDStringA			mDescription;
-	bool				mbHasStaticAbout;
-	bool				mbHasStaticConfigure;
+  VDExternalModule *  mpExtModule;
+  int                 mAPIVersion;
+  VDXFilterDefinition mDef;
+  FilterModDefinition mFilterModDef;
+  VDAtomicInt         mRefCount;
+  VDStringA           mName;
+  VDStringA           mAuthor;
+  VDStringA           mDescription;
+  bool                mbHasStaticAbout;
+  bool                mbHasStaticConfigure;
 };
 
 //////////
 
-extern VDFilterChainDesc	g_filterChain;
+extern VDFilterChainDesc g_filterChain;
 
-extern FilterSystem	filters;
+extern FilterSystem filters;
 
 FilterDefinitionInstance *FilterBaseAdd(VDXFilterModule *fm, VDXFilterDefinition *pfd, int fd_len);
-FilterDefinition *FilterAdd(VDXFilterModule *fm, VDXFilterDefinition *pfd, int fd_len);
-FilterDefinition *FilterModAdd(VDXFilterModule *fm, VDXFilterDefinition *pfd, int fd_len, FilterModDefinition *pfm, int fm_len);
-void				FilterAddBuiltin(const VDXFilterDefinition *pfd);
-void				FilterRemove(VDXFilterDefinition *fd);
-void				VDFilterRemoveAll(VDExternalModule *module);
+FilterDefinition *        FilterAdd(VDXFilterModule *fm, VDXFilterDefinition *pfd, int fd_len);
+FilterDefinition *        FilterModAdd(
+          VDXFilterModule *    fm,
+          VDXFilterDefinition *pfd,
+          int                  fd_len,
+          FilterModDefinition *pfm,
+          int                  fm_len);
+void FilterAddBuiltin(const VDXFilterDefinition *pfd);
+void FilterRemove(VDXFilterDefinition *fd);
+void VDFilterRemoveAll(VDExternalModule *module);
 
-struct FilterBlurb {
-	FilterDefinitionInstance	*key;
-	VDStringA					name;
-	VDStringA					author;
-	VDStringA					description;
-	VDStringW					module;
-	bool						hide;
+struct FilterBlurb
+{
+  FilterDefinitionInstance *key;
+  VDStringA                 name;
+  VDStringA                 author;
+  VDStringA                 description;
+  VDStringW                 module;
+  bool                      hide;
 };
 
-void				FilterEnumerateFilters(std::list<FilterBlurb>& blurbs);
-void				VDEnumerateFilters(vdfastvector<FilterDefinitionInstance *>& defs);
+void FilterEnumerateFilters(std::list<FilterBlurb> &blurbs);
+void VDEnumerateFilters(vdfastvector<FilterDefinitionInstance *> &defs);
 
 #endif

@@ -24,38 +24,40 @@
 class VDFilterFrameRequest;
 class VDTextOutputStream;
 
-class VDFilterFrameQueue {
-	VDFilterFrameQueue(const VDFilterFrameQueue&);
-	VDFilterFrameQueue& operator=(const VDFilterFrameQueue&);
+class VDFilterFrameQueue
+{
+  VDFilterFrameQueue(const VDFilterFrameQueue &);
+  VDFilterFrameQueue &operator=(const VDFilterFrameQueue &);
+
 public:
-	VDFilterFrameQueue();
-	~VDFilterFrameQueue();
+  VDFilterFrameQueue();
+  ~VDFilterFrameQueue();
 
-	void Shutdown();
+  void Shutdown();
 
-	bool GetRequest(sint64 frame, VDFilterFrameRequest **req);
-	void CompleteRequests(sint64 frame, VDFilterFrameBuffer *buf);
+  bool GetRequest(sint64 frame, VDFilterFrameRequest **req);
+  void CompleteRequests(sint64 frame, VDFilterFrameBuffer *buf);
 
-	void CreateRequest(VDFilterFrameRequest **req);
-	bool PeekNextRequest(const uint32 *batchNumberLimit, VDFilterFrameRequest **req);
-	bool GetNextRequest(const uint32 *batchNumberLimit, VDFilterFrameRequest **req);
+  void CreateRequest(VDFilterFrameRequest **req);
+  bool PeekNextRequest(const uint32 *batchNumberLimit, VDFilterFrameRequest **req);
+  bool GetNextRequest(const uint32 *batchNumberLimit, VDFilterFrameRequest **req);
 
-	void Add(VDFilterFrameRequest *req);
-	bool Remove(VDFilterFrameRequest *req);
+  void Add(VDFilterFrameRequest *req);
+  bool Remove(VDFilterFrameRequest *req);
 
-	void DumpStatus(VDTextOutputStream& os);
+  void DumpStatus(VDTextOutputStream &os);
 
 #ifdef _DEBUG
-	void ValidateState();
+  void ValidateState();
 #else
-	inline void ValidateState() {}
+  inline void ValidateState() {}
 #endif
 
 protected:
-	typedef vdfastdeque<VDFilterFrameRequest *> Requests;
-	Requests mRequests;
+  typedef vdfastdeque<VDFilterFrameRequest *> Requests;
+  Requests                                    mRequests;
 
-	VDFilterFrameRequestAllocator mAllocator;
+  VDFilterFrameRequestAllocator mAllocator;
 };
 
-#endif	// f_VD2_FILTERFRAMEQUEUE_H
+#endif // f_VD2_FILTERFRAMEQUEUE_H

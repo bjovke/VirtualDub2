@@ -21,65 +21,69 @@
 #include <vd2/system/VDString.h>
 #include <vd2/system/refcount.h>
 
-enum VDExtEncType {
-	kVDExtEncType_Video,
-	kVDExtEncType_Audio,
-	kVDExtEncType_Mux,
-	kVDExtEncTypeCount
+enum VDExtEncType
+{
+  kVDExtEncType_Video,
+  kVDExtEncType_Audio,
+  kVDExtEncType_Mux,
+  kVDExtEncTypeCount
 };
 
-enum VDExtEncInputFormat {
-	kVDExtEncInputFormat_Raw,
-	kVDExtEncInputFormat_WAV,
-	kVDExtEncInputFormatCount
+enum VDExtEncInputFormat
+{
+  kVDExtEncInputFormat_Raw,
+  kVDExtEncInputFormat_WAV,
+  kVDExtEncInputFormatCount
 };
 
-class VDExtEncProfile : public vdrefcount {
+class VDExtEncProfile : public vdrefcount
+{
 public:
-	VDExtEncProfile();
+  VDExtEncProfile();
 
-	VDStringW	mName;
-	VDStringW	mProgram;
-	VDStringW	mCommandArguments;
-	VDStringW	mOutputFilename;
-	VDExtEncType	mType;
+  VDStringW    mName;
+  VDStringW    mProgram;
+  VDStringW    mCommandArguments;
+  VDStringW    mOutputFilename;
+  VDExtEncType mType;
 
-	VDExtEncInputFormat	mInputFormat;
-	VDStringW	mPixelFormat;
+  VDExtEncInputFormat mInputFormat;
+  VDStringW           mPixelFormat;
 
-	bool	mbCheckReturnCode;
-	bool	mbLogStdout;
-	bool	mbLogStderr;
-	bool	mbPredeleteOutputFile;
-	bool	mbBypassCompression;
+  bool mbCheckReturnCode;
+  bool mbLogStdout;
+  bool mbLogStderr;
+  bool mbPredeleteOutputFile;
+  bool mbBypassCompression;
 };
 
-class VDExtEncSet : public vdrefcount {
+class VDExtEncSet : public vdrefcount
+{
 public:
-	VDExtEncSet();
+  VDExtEncSet();
 
-	VDStringW	mName;
-	VDStringW	mVideoEncoder;
-	VDStringW	mAudioEncoder;
-	VDStringW	mMultiplexer;
-	VDStringW	mFileDesc;
-	VDStringW	mFileExt;
-	bool		mbProcessPartialOutput;
-	bool		mbUseOutputAsTemp;
+  VDStringW mName;
+  VDStringW mVideoEncoder;
+  VDStringW mAudioEncoder;
+  VDStringW mMultiplexer;
+  VDStringW mFileDesc;
+  VDStringW mFileExt;
+  bool      mbProcessPartialOutput;
+  bool      mbUseOutputAsTemp;
 };
 
 uint32 VDGetExternalEncoderProfileCount();
-bool VDGetExternalEncoderProfileByIndex(uint32 idx, VDExtEncProfile **pp);
-bool VDGetExternalEncoderProfileByName(const wchar_t *name, VDExtEncProfile **pp);
-void VDAddExternalEncoderProfile(VDExtEncProfile *profile);
-void VDRemoveExternalEncoderProfile(VDExtEncProfile *profile);
+bool   VDGetExternalEncoderProfileByIndex(uint32 idx, VDExtEncProfile **pp);
+bool   VDGetExternalEncoderProfileByName(const wchar_t *name, VDExtEncProfile **pp);
+void   VDAddExternalEncoderProfile(VDExtEncProfile *profile);
+void   VDRemoveExternalEncoderProfile(VDExtEncProfile *profile);
 
 uint32 VDGetExternalEncoderSetCount();
-bool VDGetExternalEncoderSetByIndex(uint32 idx, VDExtEncSet **pp);
-bool VDGetExternalEncoderSetByName(const wchar_t *name, VDExtEncSet **pp);
-void VDAddExternalEncoderSet(VDExtEncSet *eset);
-void VDRemoveExternalEncoderSet(VDExtEncSet *eset);
-bool VDGetExternalEncoderSetAsk(HWND parent, VDExtEncSet **pp);
+bool   VDGetExternalEncoderSetByIndex(uint32 idx, VDExtEncSet **pp);
+bool   VDGetExternalEncoderSetByName(const wchar_t *name, VDExtEncSet **pp);
+void   VDAddExternalEncoderSet(VDExtEncSet *eset);
+void   VDRemoveExternalEncoderSet(VDExtEncSet *eset);
+bool   VDGetExternalEncoderSetAsk(HWND parent, VDExtEncSet **pp);
 
 void VDLoadExternalEncoderProfiles();
 void VDSaveExternalEncoderProfiles();

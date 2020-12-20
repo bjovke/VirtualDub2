@@ -20,73 +20,99 @@
 #define f_TIMELINE_H
 
 #ifdef _MSC_VER
-	#pragma once
+#pragma once
 #endif
 
 #ifndef f_VD2_SYSTEM_REFCOUNT_H
-	#include <vd2/system/refcount.h>
+#include <vd2/system/refcount.h>
 #endif
 
 #ifndef f_FRAMESUBSET_H
-	#include "FrameSubset.h"
+#include "FrameSubset.h"
 #endif
 
 class VDFraction;
 class IVDVideoSource;
 
-class IVDTimelineTimingSource : public IVDRefCount {
+class IVDTimelineTimingSource : public IVDRefCount
+{
 public:
-	virtual sint64 GetStart() = 0;
-	virtual sint64 GetLength() = 0;
-	virtual const VDFraction GetRate() = 0;
-	virtual sint64 GetPrevKey(sint64 pos) = 0;
-	virtual sint64 GetNextKey(sint64 pos) = 0;
-	virtual sint64 GetNearestKey(sint64 pos) = 0;
-	virtual bool IsKey(sint64 pos) = 0;
-	virtual bool IsNullSample(sint64 pos) = 0;
+  virtual sint64           GetStart()                = 0;
+  virtual sint64           GetLength()               = 0;
+  virtual const VDFraction GetRate()                 = 0;
+  virtual sint64           GetPrevKey(sint64 pos)    = 0;
+  virtual sint64           GetNextKey(sint64 pos)    = 0;
+  virtual sint64           GetNearestKey(sint64 pos) = 0;
+  virtual bool             IsKey(sint64 pos)         = 0;
+  virtual bool             IsNullSample(sint64 pos)  = 0;
 };
 
-class VDTimeline {
+class VDTimeline
+{
 public:
-	VDTimeline();
-	~VDTimeline();
+  VDTimeline();
+  ~VDTimeline();
 
-	FrameSubset&	GetSubset() { return mSubset; }
+  FrameSubset &GetSubset()
+  {
+    return mSubset;
+  }
 
-	void SetTimingSource(IVDTimelineTimingSource *pT) { mpTiming = pT; }
-	void SetFromSource();
-	bool IsReset() const;
+  void SetTimingSource(IVDTimelineTimingSource *pT)
+  {
+    mpTiming = pT;
+  }
+  void SetFromSource();
+  bool IsReset() const;
 
-	VDPosition		GetStart()			{ return 0; }
-	VDPosition		GetEnd()			{ return mSubset.getTotalFrames(); }
-	VDPosition		GetLength()			{ return mSubset.getTotalFrames(); }
-	VDPosition		GetNearestKey(VDPosition pos);
-	VDPosition		GetNearestKeyNext(sint64 pos);
-	VDPosition		GetPrevKey(VDPosition pos);
-	VDPosition		GetNextKey(VDPosition pos);
-	VDPosition		GetPrevDrop(VDPosition pos);
-	VDPosition		GetNextDrop(VDPosition pos);
-	VDPosition		GetPrevEdit(VDPosition pos);
-	VDPosition		GetNextEdit(VDPosition pos);
-	VDPosition		GetPrevMarker(VDPosition pos);
-	VDPosition		GetNextMarker(VDPosition pos);
+  VDPosition GetStart()
+  {
+    return 0;
+  }
+  VDPosition GetEnd()
+  {
+    return mSubset.getTotalFrames();
+  }
+  VDPosition GetLength()
+  {
+    return mSubset.getTotalFrames();
+  }
+  VDPosition GetNearestKey(VDPosition pos);
+  VDPosition GetNearestKeyNext(sint64 pos);
+  VDPosition GetPrevKey(VDPosition pos);
+  VDPosition GetNextKey(VDPosition pos);
+  VDPosition GetPrevDrop(VDPosition pos);
+  VDPosition GetNextDrop(VDPosition pos);
+  VDPosition GetPrevEdit(VDPosition pos);
+  VDPosition GetNextEdit(VDPosition pos);
+  VDPosition GetPrevMarker(VDPosition pos);
+  VDPosition GetNextMarker(VDPosition pos);
 
-	VDPosition		TimelineToSourceFrame(VDPosition pos);
+  VDPosition TimelineToSourceFrame(VDPosition pos);
 
-	void	Rescale(const VDFraction& oldRate, sint64 oldLength, const VDFraction& newRate, sint64 newLength);
+  void Rescale(const VDFraction &oldRate, sint64 oldLength, const VDFraction &newRate, sint64 newLength);
 
-	int GetMarkerCount(){ return marker.size(); }
-	VDPosition GetMarker(int i);
-	void ToggleMarker(VDPosition pos);
-	void SetMarkerSrc(VDPosition p);
-	void ClearMarker(){ marker.clear(); }
-	const vdfastvector<sint64>& GetMarker(){ return marker; }
+  int GetMarkerCount()
+  {
+    return marker.size();
+  }
+  VDPosition GetMarker(int i);
+  void       ToggleMarker(VDPosition pos);
+  void       SetMarkerSrc(VDPosition p);
+  void       ClearMarker()
+  {
+    marker.clear();
+  }
+  const vdfastvector<sint64> &GetMarker()
+  {
+    return marker;
+  }
 
 protected:
-	FrameSubset	mSubset;
-	vdfastvector<sint64> marker;
+  FrameSubset          mSubset;
+  vdfastvector<sint64> marker;
 
-	vdrefptr<IVDTimelineTimingSource> mpTiming;
+  vdrefptr<IVDTimelineTimingSource> mpTiming;
 };
 
 void VDCreateTimelineTimingSourceVS(IVDVideoSource *pVS, IVDTimelineTimingSource **ppTS);

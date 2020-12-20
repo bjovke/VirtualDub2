@@ -30,82 +30,101 @@ class IVDFilterFrameAllocator;
 //
 ///////////////////////////////////////////////////////////////////////////
 
-class VDFilterFrameAllocatorProxy {
-	VDFilterFrameAllocatorProxy& operator=(const VDFilterFrameAllocatorProxy&);
+class VDFilterFrameAllocatorProxy
+{
+  VDFilterFrameAllocatorProxy &operator=(const VDFilterFrameAllocatorProxy &);
+
 public:
-	enum AccelMode {
-		kAccelModeNone,
-		kAccelModeUpload,
-		kAccelModeRender,
-		kAccelModeCount
-	};
+  enum AccelMode
+  {
+    kAccelModeNone,
+    kAccelModeUpload,
+    kAccelModeRender,
+    kAccelModeCount
+  };
 
-	VDFilterFrameAllocatorProxy()
-		: mSizeRequired(0)
-		, mBorderWRequired(0)
-		, mBorderHRequired(0)
-		, mAccelMode(kAccelModeNone)
-		, mpAllocator(NULL)
-		, mpLink(NULL)
-	{
-	}
+  VDFilterFrameAllocatorProxy()
+    : mSizeRequired(0), mBorderWRequired(0), mBorderHRequired(0), mAccelMode(kAccelModeNone), mpAllocator(NULL),
+      mpLink(NULL)
+  {}
 
-	VDFilterFrameAllocatorProxy(const VDFilterFrameAllocatorProxy&);
-	~VDFilterFrameAllocatorProxy();
+  VDFilterFrameAllocatorProxy(const VDFilterFrameAllocatorProxy &);
+  ~VDFilterFrameAllocatorProxy();
 
-	uint32 GetSizeRequirement() const { return mSizeRequired; }
-	AccelMode GetAccelerationRequirement() const { return mAccelMode; }
-	uint32 GetBorderWidth() const { return mBorderWRequired; }
-	uint32 GetBorderHeight() const { return mBorderHRequired; }
+  uint32 GetSizeRequirement() const
+  {
+    return mSizeRequired;
+  }
+  AccelMode GetAccelerationRequirement() const
+  {
+    return mAccelMode;
+  }
+  uint32 GetBorderWidth() const
+  {
+    return mBorderWRequired;
+  }
+  uint32 GetBorderHeight() const
+  {
+    return mBorderHRequired;
+  }
 
-	void AddSizeRequirement(uint32 bytes) {
-		if (mSizeRequired < bytes)
-			mSizeRequired = bytes;
-	}
+  void AddSizeRequirement(uint32 bytes)
+  {
+    if (mSizeRequired < bytes)
+      mSizeRequired = bytes;
+  }
 
-	void AddBorderRequirement(uint32 w, uint32 h) {
-		VDASSERT(w < 10000000 && h < 10000000);
+  void AddBorderRequirement(uint32 w, uint32 h)
+  {
+    VDASSERT(w < 10000000 && h < 10000000);
 
-		if (mBorderWRequired < w)
-			mBorderWRequired = w;
+    if (mBorderWRequired < w)
+      mBorderWRequired = w;
 
-		if (mBorderHRequired < h)
-			mBorderHRequired = h;
-	}
+    if (mBorderHRequired < h)
+      mBorderHRequired = h;
+  }
 
-	void SetAccelerationRequirement(AccelMode mode) {
-		mAccelMode = mode;
-	}
+  void SetAccelerationRequirement(AccelMode mode)
+  {
+    mAccelMode = mode;
+  }
 
-	void AddRequirements(VDFilterFrameAllocatorProxy *src) {
-		AddSizeRequirement(src->GetSizeRequirement());
-		AddBorderRequirement(src->mBorderWRequired, src->mBorderHRequired);
-		SetAccelerationRequirement(src->GetAccelerationRequirement());
-	}
+  void AddRequirements(VDFilterFrameAllocatorProxy *src)
+  {
+    AddSizeRequirement(src->GetSizeRequirement());
+    AddBorderRequirement(src->mBorderWRequired, src->mBorderHRequired);
+    SetAccelerationRequirement(src->GetAccelerationRequirement());
+  }
 
-	VDFilterFrameAllocatorProxy *GetLink() const { return mpLink; }
-	void Link(VDFilterFrameAllocatorProxy *prev) {
+  VDFilterFrameAllocatorProxy *GetLink() const
+  {
+    return mpLink;
+  }
+  void Link(VDFilterFrameAllocatorProxy *prev)
+  {
 #ifdef _DEBUG
-		for(VDFilterFrameAllocatorProxy *p = prev; p; p = p->mpLink) {
-			VDASSERT(p != this);
-		}
+    for (VDFilterFrameAllocatorProxy *p = prev; p; p = p->mpLink)
+    {
+      VDASSERT(p != this);
+    }
 #endif
-		mpLink = prev;
-	}
+    mpLink = prev;
+  }
 
-	void Clear();
-	void SetAllocator(IVDFilterFrameAllocator *alloc);
+  void Clear();
+  void SetAllocator(IVDFilterFrameAllocator *alloc);
 
-	void TrimAllocator();
-	bool Allocate(VDFilterFrameBuffer **buffer);
+  void TrimAllocator();
+  bool Allocate(VDFilterFrameBuffer **buffer);
 
 protected:
-	uint32	mSizeRequired;
-	uint32	mBorderWRequired;
-	uint32	mBorderHRequired;
-	AccelMode mAccelMode;
-	IVDFilterFrameAllocator *mpAllocator;
-	VDFilterFrameAllocatorProxy *mpLink;
+  uint32                       mSizeRequired;
+  uint32                       mBorderWRequired;
+  uint32                       mBorderHRequired;
+  AccelMode                    mAccelMode;
+  IVDFilterFrameAllocator *    mpAllocator;
+  VDFilterFrameAllocatorProxy *mpLink;
 };
 
-#endif	// f_VD2_FILTERFRAMEALLOCATORPROXY_H
+#endif // f_VD2_FILTERFRAMEALLOCATORPROXY_H

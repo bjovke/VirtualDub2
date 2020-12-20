@@ -10,42 +10,47 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
-class VDFilterFrameAllocatorMemory : public vdrefcounted<IVDFilterFrameAllocator> {
-	VDFilterFrameAllocatorMemory(const VDFilterFrameAllocatorMemory&);
-	VDFilterFrameAllocatorMemory& operator=(const VDFilterFrameAllocatorMemory&);
+class VDFilterFrameAllocatorMemory : public vdrefcounted<IVDFilterFrameAllocator>
+{
+  VDFilterFrameAllocatorMemory(const VDFilterFrameAllocatorMemory &);
+  VDFilterFrameAllocatorMemory &operator=(const VDFilterFrameAllocatorMemory &);
+
 public:
-	VDFilterFrameAllocatorMemory();
-	~VDFilterFrameAllocatorMemory();
+  VDFilterFrameAllocatorMemory();
+  ~VDFilterFrameAllocatorMemory();
 
-	uint32 GetFrameSize() const { return mSizeRequired; }
+  uint32 GetFrameSize() const
+  {
+    return mSizeRequired;
+  }
 
-	void Init(uint32 minFrames, uint32 maxFrames);
-	void Shutdown();
+  void Init(uint32 minFrames, uint32 maxFrames);
+  void Shutdown();
 
-	void AddSizeRequirement(uint32 bytes);
+  void AddSizeRequirement(uint32 bytes);
 
-	void Trim();
-	bool Allocate(VDFilterFrameBuffer **buffer);
+  void Trim();
+  bool Allocate(VDFilterFrameBuffer **buffer);
 
-	void OnFrameBufferIdle(VDFilterFrameBuffer *buf);
-	void OnFrameBufferActive(VDFilterFrameBuffer *buf);
+  void OnFrameBufferIdle(VDFilterFrameBuffer *buf);
+  void OnFrameBufferActive(VDFilterFrameBuffer *buf);
 
 protected:
-	uint32	mSizeRequired;
-	uint32	mMinFrames;
-	uint32	mMaxFrames;
-	uint32	mAllocatedFrames;
-	uint32	mAllocatedBytes;
-	uint32	mActiveFrames;
-	uint32	mActiveBytes;
+  uint32 mSizeRequired;
+  uint32 mMinFrames;
+  uint32 mMaxFrames;
+  uint32 mAllocatedFrames;
+  uint32 mAllocatedBytes;
+  uint32 mActiveFrames;
+  uint32 mActiveBytes;
 
-	uint32	mTrimCounter;
-	uint32	mTrimPeriod;
-	uint32	mCurrentWatermark;
+  uint32 mTrimCounter;
+  uint32 mTrimPeriod;
+  uint32 mCurrentWatermark;
 
-	typedef vdlist<VDFilterFrameBufferAllocatorNode> Buffers;
-	Buffers mActiveBuffers;
-	Buffers mIdleBuffers;
+  typedef vdlist<VDFilterFrameBufferAllocatorNode> Buffers;
+  Buffers                                          mActiveBuffers;
+  Buffers                                          mIdleBuffers;
 };
 
-#endif	// f_VD2_FILTERFRAMEALLOCATORMEMORY_H
+#endif // f_VD2_FILTERFRAMEALLOCATORMEMORY_H

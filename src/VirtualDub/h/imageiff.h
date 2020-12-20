@@ -22,11 +22,12 @@
 
 struct VDPixmap;
 
-class VDINTERFACE IVDImageDecoderIFF {
+class VDINTERFACE IVDImageDecoderIFF
+{
 public:
-	virtual ~IVDImageDecoderIFF() {}
+  virtual ~IVDImageDecoderIFF() {}
 
-	virtual const VDPixmap& Decode(const void *src, uint32 srclen) = 0;
+  virtual const VDPixmap &Decode(const void *src, uint32 srclen) = 0;
 };
 
 IVDImageDecoderIFF *VDCreateImageDecoderIFF();

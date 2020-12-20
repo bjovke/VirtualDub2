@@ -18,25 +18,28 @@
 #ifndef f_VD2_FILTERFRAMESHARINGPREDICTOR_H
 #define f_VD2_FILTERFRAMESHARINGPREDICTOR_H
 
-class VDFilterFrameSharingPredictor {
+class VDFilterFrameSharingPredictor
+{
 public:
-	VDFilterFrameSharingPredictor();
+  VDFilterFrameSharingPredictor();
 
-	void Clear();
-	void OnRequest(sint64 frame);
+  void Clear();
+  void OnRequest(sint64 frame);
 
-	bool IsSharingPredicted(sint64 frame) const {
-		return mShareCount > 0;
-	}
+  bool IsSharingPredicted(sint64 frame) const
+  {
+    return mShareCount > 0;
+  }
 
 protected:
-	struct LRUEntry {
-		sint64	mFrame;
-		bool	mbShared;
-	};
+  struct LRUEntry
+  {
+    sint64 mFrame;
+    bool   mbShared;
+  };
 
-	uint32		mShareCount;
-	LRUEntry	mLRU[8];
+  uint32   mShareCount;
+  LRUEntry mLRU[8];
 };
 
 #endif

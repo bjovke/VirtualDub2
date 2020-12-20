@@ -21,422 +21,491 @@
 #include "VideoSource.h"
 #include "timeline.h"
 
-VDTimeline::VDTimeline() {
+VDTimeline::VDTimeline() {}
+
+VDTimeline::~VDTimeline() {}
+
+void VDTimeline::SetFromSource()
+{
+  mSubset.clear();
+  mSubset.insert(mSubset.begin(), FrameSubsetNode(mpTiming->GetStart(), mpTiming->GetLength(), false, 0));
 }
 
-VDTimeline::~VDTimeline() {
+bool VDTimeline::IsReset() const
+{
+  FrameSubset ref_subset;
+  ref_subset.insert(ref_subset.begin(), FrameSubsetNode(mpTiming->GetStart(), mpTiming->GetLength(), false, 0));
+  return ref_subset == mSubset;
 }
 
-void VDTimeline::SetFromSource() {
-	mSubset.clear();
-	mSubset.insert(mSubset.begin(), FrameSubsetNode(mpTiming->GetStart(), mpTiming->GetLength(), false, 0));
+VDPosition VDTimeline::GetNearestKey(VDPosition pos)
+{
+  if (pos <= 0)
+    return 0;
+
+  sint64                offset;
+  FrameSubset::iterator it(mSubset.findNode(offset, pos)), itBegin(mSubset.begin()), itEnd(mSubset.end());
+
+  do
+  {
+    if (it != itEnd)
+    {
+      const FrameSubsetNode &fsn0 = *it;
+
+      if (!fsn0.bMask)
+      {
+        if (mpTiming)
+          pos = mpTiming->GetNearestKey(fsn0.start + offset) - fsn0.start;
+        else
+          pos = offset;
+
+        if (pos >= 0)
+          break;
+      }
+    }
+
+    while (it != itBegin)
+    {
+      --it;
+      const FrameSubsetNode &fsn = *it;
+
+      if (!fsn.bMask)
+      {
+        if (mpTiming)
+          pos = mpTiming->GetNearestKey(fsn.start + fsn.len - 1) - fsn.start;
+        else
+          pos = fsn.len - 1;
+
+        if (pos >= 0)
+          break;
+      }
+
+      pos = 0;
+    }
+  } while (false);
+
+  while (it != itBegin)
+  {
+    --it;
+    const FrameSubsetNode &fsn2 = *it;
+
+    pos += fsn2.len;
+  }
+
+  return pos;
 }
 
-bool VDTimeline::IsReset() const {
-	FrameSubset	ref_subset;
-	ref_subset.insert(ref_subset.begin(), FrameSubsetNode(mpTiming->GetStart(), mpTiming->GetLength(), false, 0));
-	return ref_subset==mSubset;
+VDPosition VDTimeline::GetNearestKeyNext(VDPosition pos)
+{
+  VDPosition newpos = GetNearestKey(pos);
+
+  if (newpos < pos)
+  {
+    VDPosition newpos2 = GetNextKey(pos);
+
+    if (newpos2 > pos)
+      return newpos2;
+  }
+
+  return newpos;
 }
 
-VDPosition VDTimeline::GetNearestKey(VDPosition pos) {
-	if (pos <= 0)
-		return 0;
+VDPosition VDTimeline::GetPrevKey(VDPosition pos)
+{
+  if (pos <= 0)
+    return -1;
 
-	sint64 offset;
-	FrameSubset::iterator it(mSubset.findNode(offset, pos)), itBegin(mSubset.begin()), itEnd(mSubset.end());
+  if (!mpTiming)
+    return pos - 1;
 
-	do {
-		if (it!=itEnd) {
-			const FrameSubsetNode& fsn0 = *it;
+  sint64                offset;
+  FrameSubset::iterator it(mSubset.findNode(offset, pos)), itBegin(mSubset.begin()), itEnd(mSubset.end());
 
-			if (!fsn0.bMask) {
-				if (mpTiming)
-					pos = mpTiming->GetNearestKey(fsn0.start + offset) - fsn0.start;
-				else
-					pos = offset;
+  do
+  {
+    if (it != itEnd)
+    {
+      const FrameSubsetNode &fsn0 = *it;
 
-				if (pos >= 0)
-					break;
-			}
-		}
+      if (!fsn0.bMask)
+      {
+        pos = mpTiming->GetPrevKey(fsn0.start + offset) - fsn0.start;
 
-		while(it != itBegin) {
-			--it;
-			const FrameSubsetNode& fsn = *it;
+        if (pos >= 0)
+          break;
+      }
+    }
 
-			if (!fsn.bMask) {
-				if (mpTiming)
-					pos = mpTiming->GetNearestKey(fsn.start + fsn.len - 1) - fsn.start;
-				else
-					pos = fsn.len - 1;
+    while (it != itBegin)
+    {
+      --it;
+      const FrameSubsetNode &fsn = *it;
 
-				if (pos >= 0)
-					break;
-			}
+      if (!fsn.bMask)
+      {
+        pos = mpTiming->GetNearestKey(fsn.start + fsn.len - 1) - fsn.start;
 
-			pos = 0;
-		}
-	} while(false);
+        if (pos >= 0)
+          break;
+      }
 
-	while(it != itBegin) {
-		--it;
-		const FrameSubsetNode& fsn2 = *it;
+      pos = 0;
+    }
+  } while (false);
 
-		pos += fsn2.len;
-	}
+  while (it != itBegin)
+  {
+    --it;
+    const FrameSubsetNode &fsn2 = *it;
 
-	return pos;
+    pos += fsn2.len;
+  }
+
+  return pos;
 }
 
-VDPosition VDTimeline::GetNearestKeyNext(VDPosition pos) {
-	VDPosition newpos = GetNearestKey(pos);
+VDPosition VDTimeline::GetNextKey(VDPosition pos)
+{
+  if (pos >= mSubset.getTotalFrames() - 1)
+    return -1;
 
-	if (newpos < pos) {
-		VDPosition newpos2 = GetNextKey(pos);
+  if (!mpTiming)
+    return pos + 1;
 
-		if (newpos2 > pos)
-			return newpos2;
-	}
+  else
+  {
+    sint64                offset;
+    FrameSubset::iterator it(mSubset.findNode(offset, pos)), itBegin(mSubset.begin()), itEnd(mSubset.end());
 
-	return newpos;
+    do
+    {
+      if (it == itEnd)
+      {
+        VDASSERT(false);
+        return -1;
+      }
+
+      const FrameSubsetNode &fsn0 = *it;
+
+      if (!fsn0.bMask)
+      {
+        pos = mpTiming->GetNextKey(fsn0.start + offset) - fsn0.start;
+
+        if (pos >= 0 && pos < fsn0.len)
+          break;
+
+        pos = 0;
+      }
+
+      for (;;)
+      {
+        if (++it == itEnd)
+          return -1;
+
+        const FrameSubsetNode &fsn = *it;
+
+        if (!fsn.bMask)
+        {
+          pos = 0;
+          if (mpTiming->IsKey(fsn.start))
+            break;
+
+          pos = mpTiming->GetNextKey(fsn.start) - fsn.start;
+
+          if (pos >= 0 && pos < fsn.len)
+            break;
+        }
+
+        pos = 0;
+      }
+    } while (false);
+
+    while (it != itBegin)
+    {
+      --it;
+      const FrameSubsetNode &fsn2 = *it;
+
+      pos += fsn2.len;
+    }
+  }
+
+  return pos;
 }
 
-VDPosition VDTimeline::GetPrevKey(VDPosition pos) {
-	if (pos <= 0)
-		return -1;
+VDPosition VDTimeline::GetPrevDrop(VDPosition pos)
+{
+  if (!mpTiming)
+    return -1;
 
-	if (!mpTiming)
-		return pos - 1;
+  while (--pos >= 0)
+  {
+    VDPosition srcPos = mSubset.lookupFrame(pos);
 
-	sint64 offset;
-	FrameSubset::iterator it(mSubset.findNode(offset, pos)), itBegin(mSubset.begin()), itEnd(mSubset.end());
+    if (mpTiming->IsNullSample(srcPos))
+      return pos;
+  }
 
-	do {
-		if (it!=itEnd) {
-			const FrameSubsetNode& fsn0 = *it;
-
-			if (!fsn0.bMask) {
-				pos = mpTiming->GetPrevKey(fsn0.start + offset) - fsn0.start;
-
-				if (pos >= 0)
-					break;
-			}
-		}
-
-		while(it != itBegin) {
-			--it;
-			const FrameSubsetNode& fsn = *it;
-
-			if (!fsn.bMask) {
-				pos = mpTiming->GetNearestKey(fsn.start + fsn.len - 1) - fsn.start;
-
-				if (pos >= 0)
-					break;
-			}
-
-			pos = 0;
-		}
-	} while(false);
-
-	while(it != itBegin) {
-		--it;
-		const FrameSubsetNode& fsn2 = *it;
-
-		pos += fsn2.len;
-	}
-
-	return pos;
+  return pos;
 }
 
-VDPosition VDTimeline::GetNextKey(VDPosition pos) {
-	if (pos >= mSubset.getTotalFrames() - 1)
-		return -1;
+VDPosition VDTimeline::GetNextDrop(VDPosition pos)
+{
+  if (!mpTiming)
+    return -1;
 
-	if (!mpTiming)
-		return pos + 1;
+  const VDPosition len = mSubset.getTotalFrames();
 
-	else {
-		sint64 offset;
-		FrameSubset::iterator it(mSubset.findNode(offset, pos)), itBegin(mSubset.begin()), itEnd(mSubset.end());
+  while (++pos < len)
+  {
+    VDPosition srcPos = mSubset.lookupFrame(pos);
 
-		do {
-			if (it==itEnd) {
-				VDASSERT(false);
-				return -1;
-			}
+    if (mpTiming->IsNullSample(srcPos))
+      return pos;
+  }
 
-			const FrameSubsetNode& fsn0 = *it;
-
-			if (!fsn0.bMask) {
-				pos = mpTiming->GetNextKey(fsn0.start + offset) - fsn0.start;
-
-				if (pos >= 0 && pos < fsn0.len)
-					break;
-
-				pos = 0;
-			}
-
-			for(;;) {
-				if (++it == itEnd)
-					return -1;
-
-				const FrameSubsetNode& fsn = *it;
-
-				if (!fsn.bMask) {
-					pos = 0;
-					if (mpTiming->IsKey(fsn.start))
-						break;
-
-					pos = mpTiming->GetNextKey(fsn.start) - fsn.start;
-
-					if (pos >= 0 && pos < fsn.len)
-						break;
-				}
-
-				pos = 0;
-			}
-		} while(false);
-
-		while(it != itBegin) {
-			--it;
-			const FrameSubsetNode& fsn2 = *it;
-
-			pos += fsn2.len;
-		}
-	}
-
-	return pos;
+  return -1;
 }
 
-VDPosition VDTimeline::GetPrevDrop(VDPosition pos) {
-	if (!mpTiming)
-		return -1;
+VDPosition VDTimeline::GetPrevEdit(VDPosition pos)
+{
+  sint64 offset;
 
-	while(--pos >= 0) {
-		VDPosition srcPos = mSubset.lookupFrame(pos);
+  FrameSubset::iterator pfsn = mSubset.findNode(offset, pos);
 
-		if (mpTiming->IsNullSample(srcPos))
-			return pos;
-	}
+  if (pfsn == mSubset.end())
+  {
+    if (pos >= 0)
+    {
+      if (pfsn != mSubset.begin())
+      {
+        --pfsn;
+        return mSubset.getTotalFrames() - pfsn->len;
+      }
+    }
+    return -1;
+  }
 
-	return pos;
+  if (offset)
+    return pos - offset;
+
+  if (pfsn != mSubset.begin())
+  {
+    --pfsn;
+    return pos - pfsn->len;
+  }
+
+  return -1;
 }
 
-VDPosition VDTimeline::GetNextDrop(VDPosition pos) {
-	if (!mpTiming)
-		return -1;
+VDPosition VDTimeline::GetNextEdit(VDPosition pos)
+{
+  sint64 offset;
 
-	const VDPosition len = mSubset.getTotalFrames();
+  FrameSubset::iterator pfsn = mSubset.findNode(offset, pos);
 
-	while(++pos < len) {
-		VDPosition srcPos = mSubset.lookupFrame(pos);
+  if (pfsn == mSubset.end())
+    return -1;
 
-		if (mpTiming->IsNullSample(srcPos))
-			return pos;
-	}
+  pos -= offset;
+  pos += pfsn->len;
 
-	return -1;
+  ++pfsn;
+
+  if (pfsn == mSubset.end())
+    return -1;
+
+  return pos;
 }
 
-VDPosition VDTimeline::GetPrevEdit(VDPosition pos) {
-	sint64 offset;
-
-	FrameSubset::iterator pfsn = mSubset.findNode(offset, pos);
-
-	if (pfsn == mSubset.end()) {
-		if (pos >= 0) {
-			if (pfsn != mSubset.begin()) {
-				--pfsn;
-				return mSubset.getTotalFrames() - pfsn->len;
-			}
-		}
-		return -1;
-	}
-	
-	if (offset)
-		return pos - offset;
-
-	if (pfsn != mSubset.begin()) {
-		--pfsn;
-		return pos - pfsn->len;
-	}
-
-	return -1;
+VDPosition VDTimeline::TimelineToSourceFrame(VDPosition pos)
+{
+  return mSubset.lookupFrame(pos);
 }
 
-VDPosition VDTimeline::GetNextEdit(VDPosition pos) {
-	sint64 offset;
-
-	FrameSubset::iterator pfsn = mSubset.findNode(offset, pos);
-
-	if (pfsn == mSubset.end())
-		return -1;
-
-	pos -= offset;
-	pos += pfsn->len;
-
-	++pfsn;
-
-	if (pfsn == mSubset.end())
-		return -1;
-
-	return pos;
+void VDTimeline::Rescale(const VDFraction &oldRate, sint64 oldLength, const VDFraction &newRate, sint64 newLength)
+{
+  mSubset.rescale(oldRate, oldLength, newRate, newLength);
 }
 
-VDPosition VDTimeline::TimelineToSourceFrame(VDPosition pos) {
-	return mSubset.lookupFrame(pos);
+VDPosition VDTimeline::GetMarker(int i)
+{
+  VDPosition p = marker[i];
+  bool       masked;
+  return mSubset.revLookupFrame(p, masked);
 }
 
-void VDTimeline::Rescale(const VDFraction& oldRate, sint64 oldLength, const VDFraction& newRate, sint64 newLength) {
-	mSubset.rescale(oldRate, oldLength, newRate, newLength);
+void VDTimeline::ToggleMarker(VDPosition pos)
+{
+  VDPosition p = mSubset.lookupFrame(pos);
+  {
+    for (int i = 0; i < marker.size(); i++)
+    {
+      if (marker[i] == p)
+      {
+        marker.erase(&marker[i]);
+        return;
+      }
+      if (marker[i] > p)
+      {
+        marker.insert(&marker[i], p);
+        return;
+      }
+    }
+  }
+
+  marker.push_back(p);
 }
 
-VDPosition VDTimeline::GetMarker(int i) {
-	VDPosition p = marker[i];
-	bool masked;
-	return mSubset.revLookupFrame(p,masked);
+void VDTimeline::SetMarkerSrc(VDPosition p)
+{
+  {
+    for (int i = 0; i < marker.size(); i++)
+    {
+      if (marker[i] == p)
+      {
+        return;
+      }
+      if (marker[i] > p)
+      {
+        marker.insert(&marker[i], p);
+        return;
+      }
+    }
+  }
+
+  marker.push_back(p);
 }
 
-void VDTimeline::ToggleMarker(VDPosition pos) {
-	VDPosition p = mSubset.lookupFrame(pos);
-	{for(int i=0; i<marker.size(); i++){
-		if(marker[i]==p){
-			marker.erase(&marker[i]);
-			return;
-		}
-		if(marker[i]>p){
-			marker.insert(&marker[i],p);
-			return;
-		}
-	}}
+VDPosition VDTimeline::GetPrevMarker(VDPosition pos)
+{
+  VDPosition p = mSubset.lookupFrame(pos);
+  if (p == -1)
+  {
+    if (!marker.empty())
+    {
+      VDPosition r = marker[marker.size() - 1];
+      bool       masked;
+      r = mSubset.revLookupFrame(r, masked);
+      return r;
+    }
+    return -1;
+  }
 
-	marker.push_back(p);
+  VDPosition r = -1;
+  {
+    for (int i = 0; i < marker.size(); i++)
+    {
+      sint64 m = marker[i];
+      if (m >= p)
+        break;
+      r = m;
+    }
+  }
+  bool masked;
+  if (r != -1)
+    r = mSubset.revLookupFrame(r, masked);
+  return r;
 }
 
-void VDTimeline::SetMarkerSrc(VDPosition p) {
-	{for(int i=0; i<marker.size(); i++){
-		if(marker[i]==p){
-			return;
-		}
-		if(marker[i]>p){
-			marker.insert(&marker[i],p);
-			return;
-		}
-	}}
+VDPosition VDTimeline::GetNextMarker(VDPosition pos)
+{
+  VDPosition p = mSubset.lookupFrame(pos);
+  if (p == -1)
+    return -1;
 
-	marker.push_back(p);
-}
-
-VDPosition VDTimeline::GetPrevMarker(VDPosition pos) {
-	VDPosition p = mSubset.lookupFrame(pos);
-	if(p==-1){
-		if(!marker.empty()){
-			VDPosition r = marker[marker.size()-1];
-			bool masked;
-			r = mSubset.revLookupFrame(r,masked);
-			return r;
-		}
-		return -1;
-	}
-
-	VDPosition r = -1;
-	{for(int i=0; i<marker.size(); i++){
-		sint64 m = marker[i];
-		if(m>=p) break;
-		r = m;
-	}}
-	bool masked;
-	if(r!=-1) r = mSubset.revLookupFrame(r,masked);
-	return r;
-}
-
-VDPosition VDTimeline::GetNextMarker(VDPosition pos) {
-	VDPosition p = mSubset.lookupFrame(pos);
-	if(p==-1) return -1;
-
-	VDPosition r = -1;
-	{for(int i=0; i<marker.size(); i++){
-		sint64 m = marker[i];
-		if(m>p){
-			r = m;
-			break;
-		}
-	}}
-	bool masked;
-	if(r!=-1) r = mSubset.revLookupFrame(r,masked);
-	return r;
+  VDPosition r = -1;
+  {
+    for (int i = 0; i < marker.size(); i++)
+    {
+      sint64 m = marker[i];
+      if (m > p)
+      {
+        r = m;
+        break;
+      }
+    }
+  }
+  bool masked;
+  if (r != -1)
+    r = mSubset.revLookupFrame(r, masked);
+  return r;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-class VDTimelineTimingSourceVS : public vdrefcounted<IVDTimelineTimingSource> {
+class VDTimelineTimingSourceVS : public vdrefcounted<IVDTimelineTimingSource>
+{
 public:
-	VDTimelineTimingSourceVS(IVDVideoSource *pVS);
-	~VDTimelineTimingSourceVS();
+  VDTimelineTimingSourceVS(IVDVideoSource *pVS);
+  ~VDTimelineTimingSourceVS();
 
-	sint64 GetStart();
-	sint64 GetLength();
-	const VDFraction GetRate();
-	sint64 GetPrevKey(sint64 pos);
-	sint64 GetNextKey(sint64 pos);
-	sint64 GetNearestKey(sint64 pos);
-	bool IsKey(sint64 pos);
-	bool IsNullSample(sint64 pos);
+  sint64           GetStart();
+  sint64           GetLength();
+  const VDFraction GetRate();
+  sint64           GetPrevKey(sint64 pos);
+  sint64           GetNextKey(sint64 pos);
+  sint64           GetNearestKey(sint64 pos);
+  bool             IsKey(sint64 pos);
+  bool             IsNullSample(sint64 pos);
 
 protected:
-	vdrefptr<IVDVideoSource> mpVS;
-	IVDStreamSource *mpSS;
+  vdrefptr<IVDVideoSource> mpVS;
+  IVDStreamSource *        mpSS;
 };
 
-VDTimelineTimingSourceVS::VDTimelineTimingSourceVS(IVDVideoSource *pVS)
-	: mpVS(pVS)
-	, mpSS(pVS->asStream())
+VDTimelineTimingSourceVS::VDTimelineTimingSourceVS(IVDVideoSource *pVS) : mpVS(pVS), mpSS(pVS->asStream()) {}
+
+VDTimelineTimingSourceVS::~VDTimelineTimingSourceVS() {}
+
+sint64 VDTimelineTimingSourceVS::GetStart()
 {
+  return mpSS->getStart();
 }
 
-VDTimelineTimingSourceVS::~VDTimelineTimingSourceVS() {
+sint64 VDTimelineTimingSourceVS::GetLength()
+{
+  return mpSS->getLength();
 }
 
-sint64 VDTimelineTimingSourceVS::GetStart() {
-	return mpSS->getStart();
+const VDFraction VDTimelineTimingSourceVS::GetRate()
+{
+  return mpSS->getRate();
 }
 
-sint64 VDTimelineTimingSourceVS::GetLength() {
-	return mpSS->getLength();
+sint64 VDTimelineTimingSourceVS::GetPrevKey(sint64 pos)
+{
+  return mpVS->prevKey(pos);
 }
 
-const VDFraction VDTimelineTimingSourceVS::GetRate() {
-	return mpSS->getRate();
+sint64 VDTimelineTimingSourceVS::GetNextKey(sint64 pos)
+{
+  return mpVS->nextKey(pos);
 }
 
-sint64 VDTimelineTimingSourceVS::GetPrevKey(sint64 pos) {
-	return mpVS->prevKey(pos);
+sint64 VDTimelineTimingSourceVS::GetNearestKey(sint64 pos)
+{
+  return mpVS->nearestKey(pos);
 }
 
-sint64 VDTimelineTimingSourceVS::GetNextKey(sint64 pos) {
-	return mpVS->nextKey(pos);
+bool VDTimelineTimingSourceVS::IsKey(sint64 pos)
+{
+  return mpVS->isKey(pos);
 }
 
-sint64 VDTimelineTimingSourceVS::GetNearestKey(sint64 pos) {
-	return mpVS->nearestKey(pos);
+bool VDTimelineTimingSourceVS::IsNullSample(sint64 pos)
+{
+  int    err;
+  uint32 lBytes, lSamples;
+
+  err = mpSS->read(pos, 1, NULL, 0, &lBytes, &lSamples);
+  if (err != IVDStreamSource::kOK)
+    return false;
+
+  return lBytes == 0;
 }
 
-bool VDTimelineTimingSourceVS::IsKey(sint64 pos) {
-	return mpVS->isKey(pos);
-}
-
-bool VDTimelineTimingSourceVS::IsNullSample(sint64 pos) {
-	int err;
-	uint32 lBytes, lSamples;
-
-	err = mpSS->read(pos, 1, NULL, 0, &lBytes, &lSamples);
-	if (err != IVDStreamSource::kOK)
-		return false;
-
-	return lBytes == 0;
-}
-
-void VDCreateTimelineTimingSourceVS(IVDVideoSource *pVS, IVDTimelineTimingSource **ppTS) {
-	*ppTS = new VDTimelineTimingSourceVS(pVS);
-	(*ppTS)->AddRef();
+void VDCreateTimelineTimingSourceVS(IVDVideoSource *pVS, IVDTimelineTimingSource **ppTS)
+{
+  *ppTS = new VDTimelineTimingSourceVS(pVS);
+  (*ppTS)->AddRef();
 }

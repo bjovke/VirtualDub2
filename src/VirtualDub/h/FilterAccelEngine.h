@@ -30,178 +30,217 @@ class VDFilterAccelEngineDispatchQueue;
 class VDFilterAccelReadbackBuffer;
 class VDRTProfileChannel;
 
-enum VDFilterAccelStatus {
-	kVDFilterAccelStatus_OK,
-	kVDFilterAccelStatus_Failed,
-	kVDFilterAccelStatus_DeviceLost
+enum VDFilterAccelStatus
+{
+  kVDFilterAccelStatus_OK,
+  kVDFilterAccelStatus_Failed,
+  kVDFilterAccelStatus_DeviceLost
 };
 
-struct VDFilterAccelVertex {
-	float x;
-	float y;
-	float z;
-	float uv[8][4];
+struct VDFilterAccelVertex
+{
+  float x;
+  float y;
+  float z;
+  float uv[8][4];
 };
 
-struct VDFilterAccelClearVertex {
-	float x;
-	float y;
-	uint8 c[4];
+struct VDFilterAccelClearVertex
+{
+  float x;
+  float y;
+  uint8 c[4];
 };
 
-class VDFilterAccelEngineMessage : public vdlist_node {
+class VDFilterAccelEngineMessage : public vdlist_node
+{
 public:
-	VDFilterAccelEngineMessage();
+  VDFilterAccelEngineMessage();
 
-	void (*mpCallback)(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
+  void (*mpCallback)(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
 
-	typedef void (*CleanupFn)(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
-	CleanupFn mpCleanup;
-	bool mbRePoll;
-	volatile bool mbCompleted;
-	VDSignal *mpCompleteSignal;
+  typedef void (*CleanupFn)(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
+  CleanupFn     mpCleanup;
+  bool          mbRePoll;
+  volatile bool mbCompleted;
+  VDSignal *    mpCompleteSignal;
 };
 
-struct VDFilterAccelEngineDownloadMsg : public VDFilterAccelEngineMessage {
-	VDFilterAccelEngine *mpThis;
-	VDFilterAccelReadbackBuffer *mpRB;
-	VDFilterFrameBuffer *mpDstBuffer;
-	VDFilterFrameBufferAccel *mpSrc;
-	char *mpDst[3];
-	ptrdiff_t mDstPitch[3];
-	uint32 mWidth;
-	uint32 mHeight;
-	bool mbSrcYUV;
-	bool mbDstYUV;
-	bool mbWaitingForRender;
-	bool mbSuccess;
-	bool mbDeviceLost;
-	uint32 mFence;
+struct VDFilterAccelEngineDownloadMsg : public VDFilterAccelEngineMessage
+{
+  VDFilterAccelEngine *        mpThis;
+  VDFilterAccelReadbackBuffer *mpRB;
+  VDFilterFrameBuffer *        mpDstBuffer;
+  VDFilterFrameBufferAccel *   mpSrc;
+  char *                       mpDst[3];
+  ptrdiff_t                    mDstPitch[3];
+  uint32                       mWidth;
+  uint32                       mHeight;
+  bool                         mbSrcYUV;
+  bool                         mbDstYUV;
+  bool                         mbWaitingForRender;
+  bool                         mbSuccess;
+  bool                         mbDeviceLost;
+  uint32                       mFence;
 };
 
-class VDFilterAccelEngineDispatchQueue {
+class VDFilterAccelEngineDispatchQueue
+{
 public:
-	typedef VDFilterAccelEngineMessage Message;
+  typedef VDFilterAccelEngineMessage Message;
 
-	VDFilterAccelEngineDispatchQueue();
+  VDFilterAccelEngineDispatchQueue();
 
-	void Shutdown();
+  void Shutdown();
 
-	void SetProfilingChannel(VDRTProfileChannel *chan);
+  void SetProfilingChannel(VDRTProfileChannel *chan);
 
-	void Run(VDScheduler *scheduler);
-	void Post(Message *msg);
-	void Wait(Message *msg, VDFilterAccelEngineDispatchQueue& localQueue);
-	void Send(Message *msg, VDFilterAccelEngineDispatchQueue& localQueue);
+  void Run(VDScheduler *scheduler);
+  void Post(Message *msg);
+  void Wait(Message *msg, VDFilterAccelEngineDispatchQueue &localQueue);
+  void Send(Message *msg, VDFilterAccelEngineDispatchQueue &localQueue);
 
 protected:
-	VDAtomicInt mbActive;
-	VDRTProfileChannel *mpProfChan;
+  VDAtomicInt         mbActive;
+  VDRTProfileChannel *mpProfChan;
 
-	typedef vdfastdeque<Message *> Queue;
-	Queue mQueue;
-	Queue mPollQueue;
-	VDSignal mMessagesReady;
-	VDSignal mSyncMessageCompleted;
+  typedef vdfastdeque<Message *> Queue;
+  Queue                          mQueue;
+  Queue                          mPollQueue;
+  VDSignal                       mMessagesReady;
+  VDSignal                       mSyncMessageCompleted;
 
-	VDCriticalSection mMutex;
+  VDCriticalSection mMutex;
 };
 
-class VDFilterAccelEngine : VDThread, public vdrefcounted<IVDRefCount> {
+class VDFilterAccelEngine : VDThread, public vdrefcounted<IVDRefCount>
+{
 public:
-	VDFilterAccelEngine();
-	~VDFilterAccelEngine();
+  VDFilterAccelEngine();
+  ~VDFilterAccelEngine();
 
-	IVDTContext *GetContext() const { return mpTC; }
-	VDScheduler *GetScheduler() { return &mScheduler; }
+  IVDTContext *GetContext() const
+  {
+    return mpTC;
+  }
+  VDScheduler *GetScheduler()
+  {
+    return &mScheduler;
+  }
 
-	bool Init(bool visibleDebugWindow);
-	void Shutdown();
+  bool Init(bool visibleDebugWindow);
+  void Shutdown();
 
-	void SyncCall(VDFilterAccelEngineMessage *message);
-	void PostCall(VDFilterAccelEngineMessage *message);
-	void WaitForCall(VDFilterAccelEngineMessage *message);
+  void SyncCall(VDFilterAccelEngineMessage *message);
+  void PostCall(VDFilterAccelEngineMessage *message);
+  void WaitForCall(VDFilterAccelEngineMessage *message);
 
-	bool CommitBuffer(VDFilterFrameBufferAccel *buf, bool renderable);
-	void DecommitBuffer(VDFilterFrameBufferAccel *buf);
-	void Upload(VDFilterFrameBufferAccel *dst, VDFilterFrameBuffer *src, const VDPixmapLayout& srcLayout);
-	void Upload(VDFilterFrameBufferAccel *dst, const void *srcp, const VDPixmapLayout& srcLayout);
+  bool CommitBuffer(VDFilterFrameBufferAccel *buf, bool renderable);
+  void DecommitBuffer(VDFilterFrameBufferAccel *buf);
+  void Upload(VDFilterFrameBufferAccel *dst, VDFilterFrameBuffer *src, const VDPixmapLayout &srcLayout);
+  void Upload(VDFilterFrameBufferAccel *dst, const void *srcp, const VDPixmapLayout &srcLayout);
 
-	VDFilterAccelReadbackBuffer *CreateReadbackBuffer(uint32 width, uint32 height, int format);
-	void DestroyReadbackBuffer(VDFilterAccelReadbackBuffer *rb);
+  VDFilterAccelReadbackBuffer *CreateReadbackBuffer(uint32 width, uint32 height, int format);
+  void                         DestroyReadbackBuffer(VDFilterAccelReadbackBuffer *rb);
 
-	bool Download(VDFilterFrameBuffer *dst, const VDPixmapLayout& dstLayout, VDFilterFrameBufferAccel *src, bool srcYUV, VDFilterAccelReadbackBuffer *rb);
-	bool BeginDownload(VDFilterAccelEngineDownloadMsg *msg, VDFilterFrameBuffer *dst, const VDPixmapLayout& dstLayout, VDFilterFrameBufferAccel *src, bool srcYUV, VDFilterAccelReadbackBuffer *rb);
-	VDFilterAccelStatus EndDownload(VDFilterAccelEngineDownloadMsg *msg);
+  bool Download(
+    VDFilterFrameBuffer *        dst,
+    const VDPixmapLayout &       dstLayout,
+    VDFilterFrameBufferAccel *   src,
+    bool                         srcYUV,
+    VDFilterAccelReadbackBuffer *rb);
+  bool BeginDownload(
+    VDFilterAccelEngineDownloadMsg *msg,
+    VDFilterFrameBuffer *           dst,
+    const VDPixmapLayout &          dstLayout,
+    VDFilterFrameBufferAccel *      src,
+    bool                            srcYUV,
+    VDFilterAccelReadbackBuffer *   rb);
+  VDFilterAccelStatus EndDownload(VDFilterAccelEngineDownloadMsg *msg);
 
-	bool Convert(VDFilterFrameBufferAccel *dst, const VDPixmapLayout& dstLayout, VDFilterFrameBufferAccel *src, const VDPixmapLayout& srcLayout, const vdrect32& srcRect);
+  bool Convert(
+    VDFilterFrameBufferAccel *dst,
+    const VDPixmapLayout &    dstLayout,
+    VDFilterFrameBufferAccel *src,
+    const VDPixmapLayout &    srcLayout,
+    const vdrect32 &          srcRect);
 
-	void UpdateProfilingDisplay();
-	void SetSamplerState(uint32 index, bool wrap, VDXAFilterMode filter);
+  void UpdateProfilingDisplay();
+  void SetSamplerState(uint32 index, bool wrap, VDXAFilterMode filter);
 
-	enum QuadPattern {
-		kQuadPattern_1,
-		kQuadPattern_3x3,
-		kQuadPattern_4x4
-	};
+  enum QuadPattern
+  {
+    kQuadPattern_1,
+    kQuadPattern_3x3,
+    kQuadPattern_4x4
+  };
 
-	bool DrawQuads(IVDTVertexFormat *vf, IVDTFragmentProgram *fp, const void *vxs, uint32 vxcount, uint32 vxstride, QuadPattern pattern);
-	bool FillRects(uint32 rectCount, const VDXRect *rects, uint32 colorARGB, uint32 w, uint32 h, uint32 bw, uint32 bh);
+  bool DrawQuads(
+    IVDTVertexFormat *   vf,
+    IVDTFragmentProgram *fp,
+    const void *         vxs,
+    uint32               vxcount,
+    uint32               vxstride,
+    QuadPattern          pattern);
+  bool FillRects(uint32 rectCount, const VDXRect *rects, uint32 colorARGB, uint32 w, uint32 h, uint32 bw, uint32 bh);
 
 protected:
-	struct InitMsg;
-	struct DecommitMsg;
-	typedef VDFilterAccelEngineDownloadMsg DownloadMsg;
-	struct UploadMsg;
-	struct ConvertMsg;
+  struct InitMsg;
+  struct DecommitMsg;
+  typedef VDFilterAccelEngineDownloadMsg DownloadMsg;
+  struct UploadMsg;
+  struct ConvertMsg;
 
-	enum { kVBSize = 1024 * sizeof(VDFilterAccelVertex) };
+  enum
+  {
+    kVBSize = 1024 * sizeof(VDFilterAccelVertex)
+  };
 
-	static void InitCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
-	bool InitCallback2(bool visibleDebugWindow);
-	static void ShutdownCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
-	void ShutdownCallback2();
-	static void DecommitCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
-	static void UploadCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
-	static void DownloadCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
-	void DownloadCallback2a(DownloadMsg& msg);
-	void DownloadCallback2b(DownloadMsg& msg);
-	static void ConvertCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
-	void ConvertCallback2(ConvertMsg& msg);
+  static void InitCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
+  bool        InitCallback2(bool visibleDebugWindow);
+  static void ShutdownCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
+  void        ShutdownCallback2();
+  static void DecommitCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
+  static void UploadCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
+  static void DownloadCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
+  void        DownloadCallback2a(DownloadMsg &msg);
+  void        DownloadCallback2b(DownloadMsg &msg);
+  static void ConvertCallback(VDFilterAccelEngineDispatchQueue *queue, VDFilterAccelEngineMessage *message);
+  void        ConvertCallback2(ConvertMsg &msg);
 
-	void ThreadRun();
-	static VDZLPARAM VDZCALLBACK StaticWndProc(VDZHWND hwnd, VDZUINT msg, VDZWPARAM wParam, VDZLPARAM lParam);
+  void                         ThreadRun();
+  static VDZLPARAM VDZCALLBACK StaticWndProc(VDZHWND hwnd, VDZUINT msg, VDZWPARAM wParam, VDZLPARAM lParam);
 
-	IVDTContext		*mpTC;
-	IVDTProfiler	*mpTP;
+  IVDTContext * mpTC;
+  IVDTProfiler *mpTP;
 
-	IVDTFragmentProgram *mpFPConvertRGBToYUV;
-	IVDTFragmentProgram *mpFPConvertYUVToRGB;
-	IVDTFragmentProgram *mpFPNull;
-	IVDTFragmentProgram *mpFPExtractPlane;
-	IVDTFragmentProgram *mpFPClear;
-	IVDTVertexProgram *mpVP;
-	IVDTVertexProgram *mpVPClear;
-	IVDTVertexFormat *mpVF;
-	IVDTVertexFormat *mpVFC;
-	IVDTVertexFormat *mpVFCClear;
-	IVDTVertexBuffer *mpVB;
-	IVDTIndexBuffer *mpIB;
-	IVDTRasterizerState *mpRS;
-	IVDTBlendState *mpBS;
-	uint32 mVBPos;
+  IVDTFragmentProgram *mpFPConvertRGBToYUV;
+  IVDTFragmentProgram *mpFPConvertYUVToRGB;
+  IVDTFragmentProgram *mpFPNull;
+  IVDTFragmentProgram *mpFPExtractPlane;
+  IVDTFragmentProgram *mpFPClear;
+  IVDTVertexProgram *  mpVP;
+  IVDTVertexProgram *  mpVPClear;
+  IVDTVertexFormat *   mpVF;
+  IVDTVertexFormat *   mpVFC;
+  IVDTVertexFormat *   mpVFCClear;
+  IVDTVertexBuffer *   mpVB;
+  IVDTIndexBuffer *    mpIB;
+  IVDTRasterizerState *mpRS;
+  IVDTBlendState *     mpBS;
+  uint32               mVBPos;
 
-	IVDTSamplerState *mpSamplerStates[2][kVDXAFiltCount];
+  IVDTSamplerState *mpSamplerStates[2][kVDXAFiltCount];
 
-	VDFilterAccelEngineDispatchQueue	mWorkerQueue;
-	VDFilterAccelEngineDispatchQueue	mCallbackQueue;
+  VDFilterAccelEngineDispatchQueue mWorkerQueue;
+  VDFilterAccelEngineDispatchQueue mCallbackQueue;
 
-	VDZATOM		mWndClass;
-	VDZHWND		mhwnd;
-	bool		mbVisualDebugEnabled;
+  VDZATOM mWndClass;
+  VDZHWND mhwnd;
+  bool    mbVisualDebugEnabled;
 
-	VDScheduler	mScheduler;
-	VDSignal	mSchedulerSignal;
+  VDScheduler mScheduler;
+  VDSignal    mSchedulerSignal;
 };
 
 #endif

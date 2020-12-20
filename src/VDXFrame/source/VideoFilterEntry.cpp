@@ -29,28 +29,37 @@
 
 VDXFilterDefinition2 *VDXGetVideoFilterDefinition(int index);
 
-int VDXVideoFilterModuleInit2(struct VDXFilterModule *fm, const VDXFilterFunctions *ff, int vdfd_ver) {
-  for(int i=0; ; ++i){
-    VDXFilterDefinition2* def = VDXGetVideoFilterDefinition(i);
-    if(!def) break;
+int VDXVideoFilterModuleInit2(struct VDXFilterModule *fm, const VDXFilterFunctions *ff, int vdfd_ver)
+{
+  for (int i = 0;; ++i)
+  {
+    VDXFilterDefinition2 *def = VDXGetVideoFilterDefinition(i);
+    if (!def)
+      break;
     ff->addFilter(fm, def, sizeof(VDXFilterDefinition));
   }
 
   VDXVideoFilter::SetAPIVersion(vdfd_ver);
-  
+
   return 0;
 }
 
-int VDXVideoFilterModuleInitFilterMod(struct VDXFilterModule *fm, const FilterModInitFunctions *ff, int vdfd_ver, int mod_ver) {
-  for(int i=0; ; ++i){
-    VDXFilterDefinition2* def = VDXGetVideoFilterDefinition(i);
-    if(!def) break;
+int VDXVideoFilterModuleInitFilterMod(
+  struct VDXFilterModule *      fm,
+  const FilterModInitFunctions *ff,
+  int                           vdfd_ver,
+  int                           mod_ver)
+{
+  for (int i = 0;; ++i)
+  {
+    VDXFilterDefinition2 *def = VDXGetVideoFilterDefinition(i);
+    if (!def)
+      break;
     ff->addFilter(fm, def, sizeof(VDXFilterDefinition), &def->filterMod, sizeof(FilterModDefinition));
   }
 
   VDXVideoFilter::SetAPIVersion(vdfd_ver);
   VDXVideoFilter::SetFilterModVersion(mod_ver);
-  
+
   return 0;
 }
-

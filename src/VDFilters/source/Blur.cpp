@@ -24,56 +24,61 @@
 
 static const __int64 mmx_offset2 = 0x0002000200020002i64;
 static const __int64 mmx_offset8 = 0x0008000800080008i64;
-static const __int64 mmx_by11	 = 0x000b000b000b000bi64;
-static const __int64 mmx_by6	 = 0x0006000600060006i64;
+static const __int64 mmx_by11    = 0x000b000b000b000bi64;
+static const __int64 mmx_by6     = 0x0006000600060006i64;
 
 #ifdef _MSC_VER
-	#pragma warning(disable: 4799)		// warning C4799: function 'dorow_MMX' has no EMMS instruction
+#pragma warning(disable : 4799) // warning C4799: function 'dorow_MMX' has no EMMS instruction
 #endif
 
 ///////////////////////////////////////////////////////////////////////////
 
-class VEffectBlur : public VEffect {
+class VEffectBlur : public VEffect
+{
 public:
-	VEffectBlur(const VDPixmapLayout&);
-	~VEffectBlur();
+  VEffectBlur(const VDPixmapLayout &);
+  ~VEffectBlur();
 
-	void run(const VDPixmap&);
-	void run(const VDPixmap&, const VDPixmap&);
+  void run(const VDPixmap &);
+  void run(const VDPixmap &, const VDPixmap &);
 
 private:
-	uint32 *rows[3];
-
+  uint32 *rows[3];
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-VEffect *VCreateEffectBlur(const VDPixmapLayout& vbm) {
-	return new VEffectBlur(vbm);
+VEffect *VCreateEffectBlur(const VDPixmapLayout &vbm)
+{
+  return new VEffectBlur(vbm);
 }
 
-VEffectBlur::VEffectBlur(const VDPixmapLayout& vbm) {
-	int i;
+VEffectBlur::VEffectBlur(const VDPixmapLayout &vbm)
+{
+  int i;
 
-	for(i=0; i<3; i++)
-		if (!(rows[i] = new uint32[vbm.w])) {
-			while(--i>=0)
-				delete rows[i];
+  for (i = 0; i < 3; i++)
+    if (!(rows[i] = new uint32[vbm.w]))
+    {
+      while (--i >= 0)
+        delete rows[i];
 
-			throw MyMemoryError();
-		}
+      throw MyMemoryError();
+    }
 }
 
-VEffectBlur::~VEffectBlur() {
-	int i;
+VEffectBlur::~VEffectBlur()
+{
+  int i;
 
-	for(i=0; i<3; i++)
-		delete rows[i];
+  for (i = 0; i < 3; i++)
+    delete rows[i];
 }
 
 #ifdef _M_IX86
-static void __declspec(naked) dorow_MMX(uint32 *dst, const uint32 *src, uint32 w) {
-	__asm {
+static void __declspec(naked) dorow_MMX(uint32 *dst, const uint32 *src, uint32 w)
+{
+  __asm {
 		mov		eax,[esp+8]
 		mov		edx,[esp+4]
 		pxor	mm7,mm7
@@ -240,83 +245,94 @@ odd2:
 		movd		[edx+4+8],mm5
 
 		ret
-	}
+  }
 }
 #endif
 
-static void dorow(uint32 *dst, const uint32 *src, uint32 w) {
-	if (w == 1) {
-		*dst = *src;
-		return;
-	}
+static void dorow(uint32 *dst, const uint32 *src, uint32 w)
+{
+  if (w == 1)
+  {
+    *dst = *src;
+    return;
+  }
 
 #ifdef _M_IX86
-	if (MMX_enabled) {
-		dorow_MMX(dst, src, w);
-		return;
-	}
+  if (MMX_enabled)
+  {
+    dorow_MMX(dst, src, w);
+    return;
+  }
 #endif
 
-	dst[0] = ((((src[0] & 0x00FF00FF)*3 + (src[1] & 0x00FF00FF) + 0x00020002)>>2) & 0x00FF00FF)
-		   + ((((src[0] & 0x0000FF00)*3 + (src[1] & 0x0000FF00) + 0x00000200)>>2) & 0x0000FF00);
+  dst[0] = ((((src[0] & 0x00FF00FF) * 3 + (src[1] & 0x00FF00FF) + 0x00020002) >> 2) & 0x00FF00FF) +
+           ((((src[0] & 0x0000FF00) * 3 + (src[1] & 0x0000FF00) + 0x00000200) >> 2) & 0x0000FF00);
 
-	++dst;
+  ++dst;
 
-	w -= 2;
-	if (w) {
-		src += w;
-		dst += w;
+  w -= 2;
+  if (w)
+  {
+    src += w;
+    dst += w;
 
-		ptrdiff_t x = -(ptrdiff_t)w;
-		do {
-			uint32 s1, s2, s3;
+    ptrdiff_t x = -(ptrdiff_t)w;
+    do
+    {
+      uint32 s1, s2, s3;
 
-			s1 = src[x+0];
-			s2 = src[x+1];
-			s3 = src[x+2];
+      s1 = src[x + 0];
+      s2 = src[x + 1];
+      s3 = src[x + 2];
 
-			dst[x]= ((((s1&0xFF00FF) + 2*(s2&0xFF00FF) + (s3&0xFF00FF) + 0x020002)>>2) & 0xFF00FF)
-					+ ((((s1&0x00FF00) + 2*(s2&0x00FF00) + (s3&0x00FF00) + 0x000200)>>2) & 0x00FF00);
+      dst[x] = ((((s1 & 0xFF00FF) + 2 * (s2 & 0xFF00FF) + (s3 & 0xFF00FF) + 0x020002) >> 2) & 0xFF00FF) +
+               ((((s1 & 0x00FF00) + 2 * (s2 & 0x00FF00) + (s3 & 0x00FF00) + 0x000200) >> 2) & 0x00FF00);
 
-		} while(++x);
-	}
+    } while (++x);
+  }
 
-	dst[0] = ((((src[0] & 0x00FF00FF) + (src[1] & 0x00FF00FF)*3 + 0x00020002)>>2) & 0xFF00FF)
-		   + ((((src[0] & 0x0000FF00) + (src[1] & 0x0000FF00)*3 + 0x00000200)>>2) & 0x00FF00);
+  dst[0] = ((((src[0] & 0x00FF00FF) + (src[1] & 0x00FF00FF) * 3 + 0x00020002) >> 2) & 0xFF00FF) +
+           ((((src[0] & 0x0000FF00) + (src[1] & 0x0000FF00) * 3 + 0x00000200) >> 2) & 0x00FF00);
 }
 
-static void dorow_8(uint8 *dst, const uint8 *src, uint32 w) {
-	if (w == 1) {
-		*dst = *src;
-		return;
-	}
+static void dorow_8(uint8 *dst, const uint8 *src, uint32 w)
+{
+  if (w == 1)
+  {
+    *dst = *src;
+    return;
+  }
 
-	dst[0] = (src[0] * 3 + src[1] + 2) >> 2;
-	++dst;
+  dst[0] = (src[0] * 3 + src[1] + 2) >> 2;
+  ++dst;
 
-	w -= 2;
-	if (w) {
-		src += w;
-		dst += w;
+  w -= 2;
+  if (w)
+  {
+    src += w;
+    dst += w;
 
-		ptrdiff_t x = -(ptrdiff_t)w;
-		do {
-			uint32 s1, s2, s3;
+    ptrdiff_t x = -(ptrdiff_t)w;
+    do
+    {
+      uint32 s1, s2, s3;
 
-			s1 = src[x+0];
-			s2 = src[x+1];
-			s3 = src[x+2];
+      s1 = src[x + 0];
+      s2 = src[x + 1];
+      s3 = src[x + 2];
 
-			dst[x] = (uint8)((s1 + 2*s2 + s3 + 2) >> 2);
-		} while(++x);
-	}
+      dst[x] = (uint8)((s1 + 2 * s2 + s3 + 2) >> 2);
+    } while (++x);
+  }
 
-	dst[0] = (src[0] + src[1]*3 + 2) >> 2;
+  dst[0] = (src[0] + src[1] * 3 + 2) >> 2;
 }
 
 #ifdef _M_IX86
-static void __declspec(naked) docol_MMX(uint32 *dst, const uint32 *src1, const uint32 *src2, const uint32 *src3, uint32 w) {
-	__asm {
+static void __declspec(naked)
+  docol_MMX(uint32 *dst, const uint32 *src1, const uint32 *src2, const uint32 *src3, uint32 w)
+{
+  __asm {
 		push		ebp
 		push		ebx
 
@@ -357,150 +373,172 @@ xloop:
 		pop			ebx
 		pop			ebp
 		ret
-	}
+  }
 }
 #endif
 
-static void docol(uint32 *dst, const uint32 *row1, const uint32 *row2, const uint32 *row3, uint32 w) {
+static void docol(uint32 *dst, const uint32 *row1, const uint32 *row2, const uint32 *row3, uint32 w)
+{
 #ifdef _M_IX86
-	if (MMX_enabled) {
-		docol_MMX(dst, row1, row2, row3, w);
-		return;
-	}
+  if (MMX_enabled)
+  {
+    docol_MMX(dst, row1, row2, row3, w);
+    return;
+  }
 #endif
 
-	row1 += w;
-	row2 += w;
-	row3 += w;
-	dst += w;
+  row1 += w;
+  row2 += w;
+  row3 += w;
+  dst += w;
 
-	ptrdiff_t x = -(ptrdiff_t)w;
-	do {
-		uint32 s1, s2, s3;
+  ptrdiff_t x = -(ptrdiff_t)w;
+  do
+  {
+    uint32 s1, s2, s3;
 
-		s1 = row1[x];
-		s2 = row2[x];
-		s3 = row3[x];
+    s1 = row1[x];
+    s2 = row2[x];
+    s3 = row3[x];
 
-		dst[x+0]= ((((s1&0xFF00FF) + 2*(s2&0xFF00FF) + (s3&0xFF00FF) + 0x020002)>>2) & 0xFF00FF)
-				+ ((((s1&0x00FF00) + 2*(s2&0x00FF00) + (s3&0x00FF00) + 0x000200)>>2) & 0x00FF00);
+    dst[x + 0] = ((((s1 & 0xFF00FF) + 2 * (s2 & 0xFF00FF) + (s3 & 0xFF00FF) + 0x020002) >> 2) & 0xFF00FF) +
+                 ((((s1 & 0x00FF00) + 2 * (s2 & 0x00FF00) + (s3 & 0x00FF00) + 0x000200) >> 2) & 0x00FF00);
 
-	} while(++x);
+  } while (++x);
 }
 
-static void docol_8(uint8 *dst, const uint8 *row1, const uint8 *row2, const uint8 *row3, uint32 w) {
-	row1 += w;
-	row2 += w;
-	row3 += w;
-	dst += w;
+static void docol_8(uint8 *dst, const uint8 *row1, const uint8 *row2, const uint8 *row3, uint32 w)
+{
+  row1 += w;
+  row2 += w;
+  row3 += w;
+  dst += w;
 
-	ptrdiff_t x = -(ptrdiff_t)w;
-	do {
-		uint32 s1, s2, s3;
+  ptrdiff_t x = -(ptrdiff_t)w;
+  do
+  {
+    uint32 s1, s2, s3;
 
-		s1 = row1[x];
-		s2 = row2[x];
-		s3 = row3[x];
+    s1 = row1[x];
+    s2 = row2[x];
+    s3 = row3[x];
 
-		dst[x] = (uint8)((s1 + 2*s2 + s1 + 2) >> 2);
-	} while(++x);
+    dst[x] = (uint8)((s1 + 2 * s2 + s1 + 2) >> 2);
+  } while (++x);
 }
 
-void VEffectBlur::run(const VDPixmap& vbm) {
-	run(vbm, vbm);
+void VEffectBlur::run(const VDPixmap &vbm)
+{
+  run(vbm, vbm);
 }
 
-void VEffectBlur::run(const VDPixmap& vbmdst, const VDPixmap& vbm) {
-	uint32 *srcr = (uint32 *)vbm.data;
-	uint32 *dstr = (uint32 *)vbmdst.data;
-	uint32 h;
-	int crow = 2;
+void VEffectBlur::run(const VDPixmap &vbmdst, const VDPixmap &vbm)
+{
+  uint32 *srcr = (uint32 *)vbm.data;
+  uint32 *dstr = (uint32 *)vbmdst.data;
+  uint32  h;
+  int     crow = 2;
 
-	if (vbm.h == 1) {
-		dorow(rows[0], srcr, vbm.w);
-		memcpy(srcr, rows[0], sizeof(uint32)*vbm.w);
-		return;
-	} else if (vbm.h == 2) {
-		dorow(rows[0], (const uint32 *)vbm.data, vbm.w);
-		dorow(rows[1], (const uint32 *)((const char *)vbm.data + vbm.pitch), vbm.w);
-		docol((uint32 *)vbmdst.data, rows[0], rows[0], rows[1], vbm.w);
-		docol((uint32 *)((char *)vbmdst.data + vbmdst.pitch), rows[1], rows[0], rows[0], vbm.w);
-		return;
+  if (vbm.h == 1)
+  {
+    dorow(rows[0], srcr, vbm.w);
+    memcpy(srcr, rows[0], sizeof(uint32) * vbm.w);
+    return;
+  }
+  else if (vbm.h == 2)
+  {
+    dorow(rows[0], (const uint32 *)vbm.data, vbm.w);
+    dorow(rows[1], (const uint32 *)((const char *)vbm.data + vbm.pitch), vbm.w);
+    docol((uint32 *)vbmdst.data, rows[0], rows[0], rows[1], vbm.w);
+    docol((uint32 *)((char *)vbmdst.data + vbmdst.pitch), rows[1], rows[0], rows[0], vbm.w);
+    return;
+  }
 
-	}
+  dorow(rows[0], srcr, vbm.w);
+  memcpy(rows[1], rows[0], sizeof(uint32) * vbm.w);
 
-	dorow(rows[0], srcr, vbm.w);
-	memcpy(rows[1], rows[0], sizeof(uint32)*vbm.w);
+  h = vbm.h;
+  do
+  {
+    if (h > 1)
+      dorow(rows[crow], (uint32 *)((char *)srcr + vbm.pitch), vbm.w);
+    else
+      memcpy(rows[crow], rows[crow ? crow - 1 : 2], vbm.w * sizeof(uint32));
 
-	h = vbm.h;
-	do {
-		if (h>1)
-			dorow(rows[crow], (uint32 *)((char *)srcr + vbm.pitch), vbm.w);
-		else
-			memcpy(rows[crow], rows[crow ? crow-1 : 2], vbm.w*sizeof(uint32));
+    switch (crow)
+    {
+      case 0:
+        docol(dstr, rows[1], rows[2], rows[0], vbm.w);
+        break;
+      case 1:
+        docol(dstr, rows[2], rows[0], rows[1], vbm.w);
+        break;
+      case 2:
+        docol(dstr, rows[0], rows[1], rows[2], vbm.w);
+        break;
+    }
 
-		switch(crow) {
-		case 0:	docol(dstr, rows[1], rows[2], rows[0], vbm.w); break;
-		case 1:	docol(dstr, rows[2], rows[0], rows[1], vbm.w); break;
-		case 2:	docol(dstr, rows[0], rows[1], rows[2], vbm.w); break;
-		}
+    if (++crow >= 3)
+      crow = 0;
 
-		if (++crow >= 3)
-			crow = 0;
-
-		srcr = (uint32 *)((char *)srcr + vbm.pitch);
-		dstr = (uint32 *)((char *)dstr + vbmdst.pitch);
-	} while(--h);
+    srcr = (uint32 *)((char *)srcr + vbm.pitch);
+    dstr = (uint32 *)((char *)dstr + vbmdst.pitch);
+  } while (--h);
 
 #ifdef _M_IX86
-	if (MMX_enabled)
-		__asm emms
+  if (MMX_enabled)
+    __asm emms
 #endif
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-class VEffectBlurHi : public VEffect {
+class VEffectBlurHi : public VEffect
+{
 public:
-	VEffectBlurHi(const VDPixmapLayout&);
-	~VEffectBlurHi();
+  VEffectBlurHi(const VDPixmapLayout &);
+  ~VEffectBlurHi();
 
-	void run(const VDPixmap&);
-	void run(const VDPixmap&, const VDPixmap&);
+  void run(const VDPixmap &);
+  void run(const VDPixmap &, const VDPixmap &);
 
 private:
-	uint32 *rows[5];
-
+  uint32 *rows[5];
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-VEffect *VCreateEffectBlurHi(const VDPixmapLayout& vbm) {
-	return new VEffectBlurHi(vbm);
+VEffect *VCreateEffectBlurHi(const VDPixmapLayout &vbm)
+{
+  return new VEffectBlurHi(vbm);
 }
 
-VEffectBlurHi::VEffectBlurHi(const VDPixmapLayout& vbm) {
-	int i;
+VEffectBlurHi::VEffectBlurHi(const VDPixmapLayout &vbm)
+{
+  int i;
 
-	for(i=0; i<5; i++)
-		if (!(rows[i] = new uint32[vbm.w])) {
-			while(--i>=0)
-				delete rows[i];
+  for (i = 0; i < 5; i++)
+    if (!(rows[i] = new uint32[vbm.w]))
+    {
+      while (--i >= 0)
+        delete rows[i];
 
-			throw MyMemoryError();
-		}
+      throw MyMemoryError();
+    }
 }
 
-VEffectBlurHi::~VEffectBlurHi() {
-	int i;
+VEffectBlurHi::~VEffectBlurHi()
+{
+  int i;
 
-	for(i=0; i<5; i++)
-		delete rows[i];
+  for (i = 0; i < 5; i++)
+    delete rows[i];
 }
 
 #ifdef _M_IX86
-static void __declspec(naked) dorow2_MMX(uint32 *dst, const uint32 *src, uint32 w) {
-	__asm {
+static void __declspec(naked) dorow2_MMX(uint32 *dst, const uint32 *src, uint32 w)
+{
+  __asm {
 		mov		eax,[esp+8]
 		mov		edx,[esp+4]
 		pxor	mm7,mm7
@@ -743,95 +781,127 @@ last2:
 		movd		[edx+20+8],mm0
 
 		ret
-	}
+  }
 }
 #endif
 
-static void dorow2(uint32 *dst, const uint32 *src, uint32 w) {
-	if (w < 4) {
-		dorow(dst, src, w);
-		return;
-	}
+static void dorow2(uint32 *dst, const uint32 *src, uint32 w)
+{
+  if (w < 4)
+  {
+    dorow(dst, src, w);
+    return;
+  }
 
 #ifdef _M_IX86
-	if (MMX_enabled) {
-		dorow2_MMX(dst, src, w);
-		return;
-	}
+  if (MMX_enabled)
+  {
+    dorow2_MMX(dst, src, w);
+    return;
+  }
 #endif
 
-	dst[0] = ((((src[0] & 0x00FF00FF)*11 + (src[1] & 0x00FF00FF)*4 + (src[2] & 0x00FF00FF) + 0x00080008)>>4) & 0x00FF00FF)
-		   + ((((src[0] & 0x0000FF00)*11 + (src[1] & 0x0000FF00)*4 + (src[2] & 0x0000FF00) + 0x00000800)>>4) & 0x0000FF00);
+  dst[0] =
+    ((((src[0] & 0x00FF00FF) * 11 + (src[1] & 0x00FF00FF) * 4 + (src[2] & 0x00FF00FF) + 0x00080008) >> 4) &
+     0x00FF00FF) +
+    ((((src[0] & 0x0000FF00) * 11 + (src[1] & 0x0000FF00) * 4 + (src[2] & 0x0000FF00) + 0x00000800) >> 4) & 0x0000FF00);
 
-	dst[1] = ((((src[0] & 0x00FF00FF)*5 + (src[1] & 0x00FF00FF)*6 + (src[2] & 0x00FF00FF)*4 + (src[3] & 0x00FF00FF) + 0x00080008)>>4) & 0x00FF00FF)
-		   + ((((src[0] & 0x0000FF00)*5 + (src[1] & 0x0000FF00)*6 + (src[2] & 0x0000FF00)*4 + (src[3] & 0x0000FF00) + 0x00000800)>>4) & 0x0000FF00);
+  dst[1] = ((((src[0] & 0x00FF00FF) * 5 + (src[1] & 0x00FF00FF) * 6 + (src[2] & 0x00FF00FF) * 4 +
+              (src[3] & 0x00FF00FF) + 0x00080008) >>
+             4) &
+            0x00FF00FF) +
+           ((((src[0] & 0x0000FF00) * 5 + (src[1] & 0x0000FF00) * 6 + (src[2] & 0x0000FF00) * 4 +
+              (src[3] & 0x0000FF00) + 0x00000800) >>
+             4) &
+            0x0000FF00);
 
-	dst += 2;
+  dst += 2;
 
-	w -= 4;
-	if (w) {
-		src += w;
-		dst += w;
+  w -= 4;
+  if (w)
+  {
+    src += w;
+    dst += w;
 
-		ptrdiff_t x = -(ptrdiff_t)w;
-		do {
-			uint32 s1, s2, s3, s4, s5;
+    ptrdiff_t x = -(ptrdiff_t)w;
+    do
+    {
+      uint32 s1, s2, s3, s4, s5;
 
-			s1 = src[x+0];
-			s2 = src[x+1];
-			s3 = src[x+2];
-			s4 = src[x+3];
-			s5 = src[x+4];
+      s1 = src[x + 0];
+      s2 = src[x + 1];
+      s3 = src[x + 2];
+      s4 = src[x + 3];
+      s5 = src[x + 4];
 
-			dst[x+0]= ((((s1&0xFF00FF) + 4*(s2&0xFF00FF) + 6*(s3&0xFF00FF) + 4*(s4&0xFF00FF) + (s5&0xFF00FF) + 0x080008)>>4) & 0xFF00FF)
-					+ ((((s1&0x00FF00) + 4*(s2&0x00FF00) + 6*(s3&0x00FF00) + 4*(s4&0x00FF00) + (s5&0x00FF00) + 0x000800)>>4) & 0x00FF00);
+      dst[x + 0] = ((((s1 & 0xFF00FF) + 4 * (s2 & 0xFF00FF) + 6 * (s3 & 0xFF00FF) + 4 * (s4 & 0xFF00FF) +
+                      (s5 & 0xFF00FF) + 0x080008) >>
+                     4) &
+                    0xFF00FF) +
+                   ((((s1 & 0x00FF00) + 4 * (s2 & 0x00FF00) + 6 * (s3 & 0x00FF00) + 4 * (s4 & 0x00FF00) +
+                      (s5 & 0x00FF00) + 0x000800) >>
+                     4) &
+                    0x00FF00);
 
-		} while(++x);
-	}
+    } while (++x);
+  }
 
-	dst[0] = ((((src[0] & 0x00FF00FF) + (src[1] & 0x00FF00FF)*4 + (src[2] & 0x00FF00FF)*6 + (src[3] & 0x00FF00FF)*5 + 0x00080008)>>4) & 0x00FF00FF)
-		   + ((((src[0] & 0x0000FF00) + (src[1] & 0x0000FF00)*4 + (src[2] & 0x0000FF00)*6 + (src[3] & 0x0000FF00)*5 + 0x00000800)>>4) & 0x0000FF00);
+  dst[0] = ((((src[0] & 0x00FF00FF) + (src[1] & 0x00FF00FF) * 4 + (src[2] & 0x00FF00FF) * 6 +
+              (src[3] & 0x00FF00FF) * 5 + 0x00080008) >>
+             4) &
+            0x00FF00FF) +
+           ((((src[0] & 0x0000FF00) + (src[1] & 0x0000FF00) * 4 + (src[2] & 0x0000FF00) * 6 +
+              (src[3] & 0x0000FF00) * 5 + 0x00000800) >>
+             4) &
+            0x0000FF00);
 
-	dst[1] = ((((src[0] & 0x00FF00FF) + (src[1] & 0x00FF00FF)*4 + (src[2] & 0x00FF00FF)*11 + 0x00080008)>>4) & 0x00FF00FF)
-		   + ((((src[0] & 0x0000FF00) + (src[1] & 0x0000FF00)*4 + (src[2] & 0x0000FF00)*11 + 0x00000800)>>4) & 0x0000FF00);
+  dst[1] =
+    ((((src[0] & 0x00FF00FF) + (src[1] & 0x00FF00FF) * 4 + (src[2] & 0x00FF00FF) * 11 + 0x00080008) >> 4) &
+     0x00FF00FF) +
+    ((((src[0] & 0x0000FF00) + (src[1] & 0x0000FF00) * 4 + (src[2] & 0x0000FF00) * 11 + 0x00000800) >> 4) & 0x0000FF00);
 }
 
-static void dorow2_8(unsigned char *dst, unsigned char *src, uint32 w) {
-	if (w < 4)
-		return;
+static void dorow2_8(unsigned char *dst, unsigned char *src, uint32 w)
+{
+  if (w < 4)
+    return;
 
-	dst[0] = (uint8)((src[0]*11 + src[1]*4 + src[2] + 8) >> 4);
-	dst[1] = (uint8)((src[0]*5 + src[1]*6 + src[2]*4 + src[3] + 8) >> 4);
+  dst[0] = (uint8)((src[0] * 11 + src[1] * 4 + src[2] + 8) >> 4);
+  dst[1] = (uint8)((src[0] * 5 + src[1] * 6 + src[2] * 4 + src[3] + 8) >> 4);
 
-	dst += 2;
+  dst += 2;
 
-	w -= 4;
-	if (w) {
-		src += w;
-		dst += w;
+  w -= 4;
+  if (w)
+  {
+    src += w;
+    dst += w;
 
-		ptrdiff_t x = -(ptrdiff_t)w;
-		do {
-			unsigned s1, s2, s3, s4, s5;
+    ptrdiff_t x = -(ptrdiff_t)w;
+    do
+    {
+      unsigned s1, s2, s3, s4, s5;
 
-			s1 = src[x+0];
-			s2 = src[x+1];
-			s3 = src[x+2];
-			s4 = src[x+3];
-			s5 = src[x+4];
+      s1 = src[x + 0];
+      s2 = src[x + 1];
+      s3 = src[x + 2];
+      s4 = src[x + 3];
+      s5 = src[x + 4];
 
-			dst[x+0] = (uint8)((s1 + 4*s2 + 6*s3 + 4*s4 + s5 + 8) >> 4);
+      dst[x + 0] = (uint8)((s1 + 4 * s2 + 6 * s3 + 4 * s4 + s5 + 8) >> 4);
 
-		} while(++x);
-	}
+    } while (++x);
+  }
 
-	dst[0] = (uint8)((src[0] + src[1]*4 + src[2]*6 + src[3]*5 + 8) >> 4);
-	dst[1] = (uint8)((src[0] + src[1]*4 + src[2]*11 + 8) >> 4);
+  dst[0] = (uint8)((src[0] + src[1] * 4 + src[2] * 6 + src[3] * 5 + 8) >> 4);
+  dst[1] = (uint8)((src[0] + src[1] * 4 + src[2] * 11 + 8) >> 4);
 }
 
 #ifdef _M_IX86
-static void __declspec(naked) docol2_MMX(uint32 *dst, uint32 *src1, uint32 *src2, uint32 *src3, uint32 *src4, uint32 *src5, uint32 w) {
-	__asm {
+static void __declspec(naked)
+  docol2_MMX(uint32 *dst, uint32 *src1, uint32 *src2, uint32 *src3, uint32 *src4, uint32 *src5, uint32 w)
+{
+  __asm {
 		push		ebp
 		push		edi
 		push		esi
@@ -890,124 +960,158 @@ xloop:
 		pop			edi
 		pop			ebp
 		ret
-	}
+  }
 }
 #endif
 
-static void docol2(uint32 *dst, uint32 *row1, uint32 *row2, uint32 *row3, uint32 *row4, uint32 *row5, uint32 w) {
+static void docol2(uint32 *dst, uint32 *row1, uint32 *row2, uint32 *row3, uint32 *row4, uint32 *row5, uint32 w)
+{
 #ifdef _M_IX86
-	if (MMX_enabled) {
-		docol2_MMX(dst, row1, row2, row3, row4, row5, w);
-		return;
-	}
+  if (MMX_enabled)
+  {
+    docol2_MMX(dst, row1, row2, row3, row4, row5, w);
+    return;
+  }
 #endif
 
-	row1 += w;
-	row2 += w;
-	row3 += w;
-	row4 += w;
-	row5 += w;
-	dst += w;
+  row1 += w;
+  row2 += w;
+  row3 += w;
+  row4 += w;
+  row5 += w;
+  dst += w;
 
-	ptrdiff_t x = -(ptrdiff_t)w;
-	do {
-		uint32 s1, s2, s3, s4, s5;
+  ptrdiff_t x = -(ptrdiff_t)w;
+  do
+  {
+    uint32 s1, s2, s3, s4, s5;
 
-		s1 = row1[x];
-		s2 = row2[x];
-		s3 = row3[x];
-		s4 = row4[x];
-		s5 = row5[x];
+    s1 = row1[x];
+    s2 = row2[x];
+    s3 = row3[x];
+    s4 = row4[x];
+    s5 = row5[x];
 
-		dst[x]= ((((s1&0xFF00FF) + 4*(s2&0xFF00FF) + 6*(s3&0xFF00FF) + 4*(s4&0xFF00FF) + (s5&0xFF00FF) + 0x080008)>>4) & 0xFF00FF)
-				+ ((((s1&0xFF00FF00)>>4) + ((s2&0xFF00FF00)>>2) + 3*((s3&0xFF00FF00)>>3) + ((s4&0xFF00FF00)>>2) + ((s5&0xFF00FF00)>>4) + 0x00800080) & 0xFF00FF00);
+    dst[x] = ((((s1 & 0xFF00FF) + 4 * (s2 & 0xFF00FF) + 6 * (s3 & 0xFF00FF) + 4 * (s4 & 0xFF00FF) + (s5 & 0xFF00FF) +
+                0x080008) >>
+               4) &
+              0xFF00FF) +
+             ((((s1 & 0xFF00FF00) >> 4) + ((s2 & 0xFF00FF00) >> 2) + 3 * ((s3 & 0xFF00FF00) >> 3) +
+               ((s4 & 0xFF00FF00) >> 2) + ((s5 & 0xFF00FF00) >> 4) + 0x00800080) &
+              0xFF00FF00);
 
-	} while(++x);
+  } while (++x);
 }
 
-void VEffectBlurHi::run(const VDPixmap& vbm) {
-	run(vbm, vbm);
+void VEffectBlurHi::run(const VDPixmap &vbm)
+{
+  run(vbm, vbm);
 }
 
-void VEffectBlurHi::run(const VDPixmap& vbmdst, const VDPixmap& vbm) {
-	if (vbmdst.format != vbm.format)
-		return;
+void VEffectBlurHi::run(const VDPixmap &vbmdst, const VDPixmap &vbm)
+{
+  if (vbmdst.format != vbm.format)
+    return;
 
-	bool mode8 = false;
-	if (vbmdst.format == nsVDXPixmap::kPixFormat_Y8)
-		mode8 = true;
-	else if (vbmdst.format != nsVDXPixmap::kPixFormat_XRGB8888)
-		return;
+  bool mode8 = false;
+  if (vbmdst.format == nsVDXPixmap::kPixFormat_Y8)
+    mode8 = true;
+  else if (vbmdst.format != nsVDXPixmap::kPixFormat_XRGB8888)
+    return;
 
-	const uint32 *srcr = (const uint32 *)vbm.data;
-	uint32 *dstr = (uint32 *)vbmdst.data;
-	uint32 h;
-	int crow = 4;
+  const uint32 *srcr = (const uint32 *)vbm.data;
+  uint32 *      dstr = (uint32 *)vbmdst.data;
+  uint32        h;
+  int           crow = 4;
 
-	int rowdwords = mode8 ? (vbm.w + 3) >> 2 : vbm.w;
+  int rowdwords = mode8 ? (vbm.w + 3) >> 2 : vbm.w;
 
-	if (vbm.h == 1) {
-		if (mode8)
-			dorow_8((uint8 *)rows[0], (const uint8 *)srcr, vbm.w);
-		else
-			dorow(rows[0], srcr, vbm.w);
-		memcpy(dstr, rows[0], sizeof(uint32)*vbm.w);
-		return;
-	} else if (vbm.h == 2) {
-		if (mode8) {
-			dorow_8((uint8 *)rows[0], (const uint8 *)vbm.data, vbm.w);
-			dorow_8((uint8 *)rows[1], (const uint8 *)((const char *)vbm.data + vbm.pitch), vbm.w);
-			docol_8((uint8 *)vbm.data, (const uint8 *)rows[0], (const uint8 *)rows[0], (const uint8 *)rows[1], vbm.w);
-			docol_8((uint8 *)((char *)vbm.data + vbm.pitch), (const uint8 *)rows[1], (const uint8 *)rows[0], (const uint8 *)rows[0], vbm.w);
-		} else {
-			dorow(rows[0], (const uint32 *)vbm.data, vbm.w);
-			dorow(rows[1], (const uint32 *)((const char *)vbm.data + vbm.pitch), vbm.w);
-			docol((uint32 *)vbm.data, rows[0], rows[0], rows[1], vbm.w);
-			docol((uint32 *)((char *)vbm.data + vbm.pitch), rows[1], rows[0], rows[0], vbm.w);
-		}
-		return;
+  if (vbm.h == 1)
+  {
+    if (mode8)
+      dorow_8((uint8 *)rows[0], (const uint8 *)srcr, vbm.w);
+    else
+      dorow(rows[0], srcr, vbm.w);
+    memcpy(dstr, rows[0], sizeof(uint32) * vbm.w);
+    return;
+  }
+  else if (vbm.h == 2)
+  {
+    if (mode8)
+    {
+      dorow_8((uint8 *)rows[0], (const uint8 *)vbm.data, vbm.w);
+      dorow_8((uint8 *)rows[1], (const uint8 *)((const char *)vbm.data + vbm.pitch), vbm.w);
+      docol_8((uint8 *)vbm.data, (const uint8 *)rows[0], (const uint8 *)rows[0], (const uint8 *)rows[1], vbm.w);
+      docol_8(
+        (uint8 *)((char *)vbm.data + vbm.pitch),
+        (const uint8 *)rows[1],
+        (const uint8 *)rows[0],
+        (const uint8 *)rows[0],
+        vbm.w);
+    }
+    else
+    {
+      dorow(rows[0], (const uint32 *)vbm.data, vbm.w);
+      dorow(rows[1], (const uint32 *)((const char *)vbm.data + vbm.pitch), vbm.w);
+      docol((uint32 *)vbm.data, rows[0], rows[0], rows[1], vbm.w);
+      docol((uint32 *)((char *)vbm.data + vbm.pitch), rows[1], rows[0], rows[0], vbm.w);
+    }
+    return;
+  }
 
-	}
+  if (mode8)
+    dorow2_8((unsigned char *)rows[0], (unsigned char *)srcr, vbm.w);
+  else
+    dorow2(rows[0], srcr, vbm.w);
+  memcpy(rows[1], rows[0], sizeof(uint32) * rowdwords);
+  memcpy(rows[2], rows[0], sizeof(uint32) * rowdwords);
 
-	if (mode8)
-		dorow2_8((unsigned char *)rows[0], (unsigned char *)srcr, vbm.w);
-	else
-		dorow2(rows[0], srcr, vbm.w);
-	memcpy(rows[1], rows[0], sizeof(uint32)*rowdwords);
-	memcpy(rows[2], rows[0], sizeof(uint32)*rowdwords);
+  if (mode8)
+    dorow2_8((unsigned char *)rows[3], (unsigned char *)((char *)srcr + vbm.pitch), vbm.w);
+  else
+    dorow2(rows[3], (uint32 *)((char *)srcr + vbm.pitch), vbm.w);
 
-	if (mode8)
-		dorow2_8((unsigned char *)rows[3], (unsigned char *)((char *)srcr + vbm.pitch), vbm.w);
-	else
-		dorow2(rows[3], (uint32 *)((char *)srcr + vbm.pitch), vbm.w);
+  h = vbm.h;
+  do
+  {
+    if (h > 2)
+    {
+      if (mode8)
+        dorow2_8((unsigned char *)rows[crow], (unsigned char *)((char *)srcr + vbm.pitch * 2), vbm.w);
+      else
+        dorow2(rows[crow], (uint32 *)((char *)srcr + vbm.pitch * 2), vbm.w);
+    }
+    else
+      memcpy(rows[crow], rows[crow ? crow - 1 : 4], rowdwords * sizeof(uint32));
 
-	h = vbm.h;
-	do {
-		if (h>2) {
-			if (mode8)
-				dorow2_8((unsigned char *)rows[crow], (unsigned char *)((char *)srcr + vbm.pitch*2), vbm.w);
-			else
-				dorow2(rows[crow], (uint32 *)((char *)srcr + vbm.pitch*2), vbm.w);
-		} else
-			memcpy(rows[crow], rows[crow ? crow-1 : 4], rowdwords*sizeof(uint32));
+    switch (crow)
+    {
+      case 0:
+        docol2(dstr, rows[1], rows[2], rows[3], rows[4], rows[0], rowdwords);
+        break;
+      case 1:
+        docol2(dstr, rows[2], rows[3], rows[4], rows[0], rows[1], rowdwords);
+        break;
+      case 2:
+        docol2(dstr, rows[3], rows[4], rows[0], rows[1], rows[2], rowdwords);
+        break;
+      case 3:
+        docol2(dstr, rows[4], rows[0], rows[1], rows[2], rows[3], rowdwords);
+        break;
+      case 4:
+        docol2(dstr, rows[0], rows[1], rows[2], rows[3], rows[4], rowdwords);
+        break;
+    }
 
-		switch(crow) {
-		case 0:	docol2(dstr, rows[1], rows[2], rows[3], rows[4], rows[0], rowdwords); break;
-		case 1:	docol2(dstr, rows[2], rows[3], rows[4], rows[0], rows[1], rowdwords); break;
-		case 2:	docol2(dstr, rows[3], rows[4], rows[0], rows[1], rows[2], rowdwords); break;
-		case 3:	docol2(dstr, rows[4], rows[0], rows[1], rows[2], rows[3], rowdwords); break;
-		case 4:	docol2(dstr, rows[0], rows[1], rows[2], rows[3], rows[4], rowdwords); break;
-		}
+    if (++crow >= 5)
+      crow = 0;
 
-		if (++crow >= 5)
-			crow = 0;
-
-		srcr = (uint32 *)((char *)srcr + vbm.pitch);
-		dstr = (uint32 *)((char *)dstr + vbmdst.pitch);
-	} while(--h);
+    srcr = (uint32 *)((char *)srcr + vbm.pitch);
+    dstr = (uint32 *)((char *)dstr + vbmdst.pitch);
+  } while (--h);
 
 #ifdef _M_IX86
-	if (MMX_enabled)
-		__asm emms
+  if (MMX_enabled)
+    __asm emms
 #endif
 }

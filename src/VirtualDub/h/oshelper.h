@@ -27,13 +27,13 @@ void VDShowHelp(VDZHWND hwnd, const wchar_t *filename = 0);
 
 bool IsFilenameOnFATVolume(const wchar_t *pszFilename);
 
-VDZHWND VDGetAncestorW32(VDZHWND hwnd, uint32 gaFlags);
+VDZHWND   VDGetAncestorW32(VDZHWND hwnd, uint32 gaFlags);
 VDStringW VDLoadStringW32(uint32 uID, bool doSubstitutions);
-void VDSubstituteStrings(VDStringW& s);
+void      VDSubstituteStrings(VDStringW &s);
 
-void VDSetDataPath(const wchar_t *path);
+void           VDSetDataPath(const wchar_t *path);
 const wchar_t *VDGetDataPath();
-VDStringW VDGetLocalAppDataPath();
+VDStringW      VDGetLocalAppDataPath();
 
 void VDCopyTextToClipboard(const wchar_t *s);
 
@@ -45,44 +45,48 @@ void LaunchURL(const char *pURL);
 
 enum VDSystemShutdownMode
 {
-	kVDSystemShutdownMode_Shutdown,
-	kVDSystemShutdownMode_Hibernate,
-	kVDSystemShutdownMode_Sleep
+  kVDSystemShutdownMode_Shutdown,
+  kVDSystemShutdownMode_Hibernate,
+  kVDSystemShutdownMode_Sleep
 };
 
 bool VDInitiateSystemShutdownWithUITimeout(VDSystemShutdownMode mode, const wchar_t *reason, uint32 timeout);
 bool VDInitiateSystemShutdown(VDSystemShutdownMode mode);
 
-class VDCPUUsageReader {
+class VDCPUUsageReader
+{
 public:
-	VDCPUUsageReader();
-	~VDCPUUsageReader();
+  VDCPUUsageReader();
+  ~VDCPUUsageReader();
 
-	void Init();
-	void Shutdown();
+  void Init();
+  void Shutdown();
 
-	void read(int& vd, int& sys);
+  void read(int &vd, int &sys);
 
 private:
-	bool fNTMethod;
-	VDZHKEY hkeyKernelCPU;
+  bool    fNTMethod;
+  VDZHKEY hkeyKernelCPU;
 
-	uint64 kt_last;
-	uint64 ut_last;
-	uint64 skt_last;
-	uint64 sut_last;
-	uint64 idle_last;
+  uint64 kt_last;
+  uint64 ut_last;
+  uint64 skt_last;
+  uint64 sut_last;
+  uint64 idle_last;
 };
 
 void VDEnableSampling(bool bEnable);
 
-struct VDSamplingAutoProfileScope {
-	VDSamplingAutoProfileScope() {
-		VDEnableSampling(true);
-	}
-	~VDSamplingAutoProfileScope() {
-		VDEnableSampling(false);
-	}
+struct VDSamplingAutoProfileScope
+{
+  VDSamplingAutoProfileScope()
+  {
+    VDEnableSampling(true);
+  }
+  ~VDSamplingAutoProfileScope()
+  {
+    VDEnableSampling(false);
+  }
 };
 
 #endif

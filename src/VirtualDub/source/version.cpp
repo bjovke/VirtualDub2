@@ -18,6 +18,7 @@
 #include "stdafx.h"
 #include "version.h"
 
-uint32 VDGetBuildNumber() {
-	return version_num;
+uint32 VDGetBuildNumber()
+{
+  return version_num;
 }

@@ -24,27 +24,33 @@
 #define EXTERN extern
 #endif
 
-struct VirtualDubCheckpoint {
-	const char *file;
-	int line;
+struct VirtualDubCheckpoint
+{
+  const char *file;
+  int         line;
 
-	inline void set(const char *f, int l) { file=f; line=l; }
+  inline void set(const char *f, int l)
+  {
+    file = f;
+    line = l;
+  }
 };
 
-#define CHECKPOINT_COUNT		(16)
+#define CHECKPOINT_COUNT (16)
 
-struct VirtualDubThreadState {
-	const char				*pszThreadName;
-	unsigned long			dwThreadId;
-	void *					hThread;
+struct VirtualDubThreadState
+{
+  const char *  pszThreadName;
+  unsigned long dwThreadId;
+  void *        hThread;
 
-	VirtualDubCheckpoint	cp[CHECKPOINT_COUNT];
-	int						nNextCP;
+  VirtualDubCheckpoint cp[CHECKPOINT_COUNT];
+  int                  nNextCP;
 };
 
 EXTERN __declspec(thread) VirtualDubThreadState g_PerThreadState;
 
-#define VDCHECKPOINT (g_PerThreadState.cp[g_PerThreadState.nNextCP++&(CHECKPOINT_COUNT-1)].set(__FILE__, __LINE__))
+#define VDCHECKPOINT (g_PerThreadState.cp[g_PerThreadState.nNextCP++ & (CHECKPOINT_COUNT - 1)].set(__FILE__, __LINE__))
 
 void VDThreadInitHandler(bool, const char *);
 void VDSetCrashDumpPath(const wchar_t *s);

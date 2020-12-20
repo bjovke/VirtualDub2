@@ -20,21 +20,25 @@
 #define f_VD2_RIZA_CAP_DSHOW_H
 
 #ifdef _MSC_VER
-	#pragma once
+#pragma once
 #endif
 
-class VDINTERFACE IVDCaptureDriverDShow : public IVDUnknown {
+class VDINTERFACE IVDCaptureDriverDShow : public IVDUnknown
+{
 public:
-	enum { kTypeID = 'cpds' };
+  enum
+  {
+    kTypeID = 'cpds'
+  };
 
-	virtual bool GetDisableClockForPreview() = 0;
-	virtual void SetDisableClockForPreview(bool enabled) = 0;
+  virtual bool GetDisableClockForPreview()             = 0;
+  virtual void SetDisableClockForPreview(bool enabled) = 0;
 
-	virtual bool GetForceAudioRendererClock() = 0;
-	virtual void SetForceAudioRendererClock(bool enabled) = 0;
+  virtual bool GetForceAudioRendererClock()             = 0;
+  virtual void SetForceAudioRendererClock(bool enabled) = 0;
 
-	virtual bool GetIgnoreVideoTimestamps() = 0;
-	virtual void SetIgnoreVideoTimestamps(bool enabled) = 0;
+  virtual bool GetIgnoreVideoTimestamps()             = 0;
+  virtual void SetIgnoreVideoTimestamps(bool enabled) = 0;
 };
 
 #endif

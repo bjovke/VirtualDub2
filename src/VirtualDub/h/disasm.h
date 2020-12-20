@@ -21,71 +21,75 @@
 #include <windows.h>
 
 
-struct VDDisassemblyContext {
-	const unsigned char *pRuleBase;
-	const unsigned *pRuleSystemOffsets;
-	long (*pSymLookup)(VDDisassemblyContext *pctx, unsigned long virtAddr, char *buf, int buf_len);
+struct VDDisassemblyContext
+{
+  const unsigned char *pRuleBase;
+  const unsigned *     pRuleSystemOffsets;
+  long (*pSymLookup)(VDDisassemblyContext *pctx, unsigned long virtAddr, char *buf, int buf_len);
 
-	bool bSizeOverride;			// 66
-	bool bAddressOverride;		// 67
-	bool bRepnePrefix;			// F2
-	bool bRepePrefix;			// F3
-	unsigned char	rex;
-	const char *pszSegmentOverride;
+  bool          bSizeOverride;    // 66
+  bool          bAddressOverride; // 67
+  bool          bRepnePrefix;     // F2
+  bool          bRepePrefix;      // F3
+  unsigned char rex;
+  const char *  pszSegmentOverride;
 
-	long	physToVirtOffset;
+  long physToVirtOffset;
 
-	void	*pRawBlock;
-	char	*heap;
-	char	*heap_limit;
-	ptrdiff_t		*stack;
+  void *     pRawBlock;
+  char *     heap;
+  char *     heap_limit;
+  ptrdiff_t *stack;
 
-	void	*pExtraData;
-	int		cbExtraData;
+  void *pExtraData;
+  int   cbExtraData;
 };
 
 
-bool VDDisasmInit(VDDisassemblyContext *, const char *, const char *);
-void VDDisasmDeinit(VDDisassemblyContext *);
-char *VDDisassemble(VDDisassemblyContext *pvdc, const unsigned char *source, int bytes, int& count);
+bool  VDDisasmInit(VDDisassemblyContext *, const char *, const char *);
+void  VDDisasmDeinit(VDDisassemblyContext *);
+char *VDDisassemble(VDDisassemblyContext *pvdc, const unsigned char *source, int bytes, int &count);
 
 
 
-class CodeDisassemblyWindow {
+class CodeDisassemblyWindow
+{
 private:
-	static INT_PTR CALLBACK DlgProc(HWND, UINT, WPARAM, LPARAM);
+  static INT_PTR CALLBACK DlgProc(HWND, UINT, WPARAM, LPARAM);
 
-	void *code, *rbase, *abase;
-	long length;
-	void *pFault;
+  void *code, *rbase, *abase;
+  long  length;
+  void *pFault;
 
-	class lbent {
-	public:
-		unsigned char *ip;
-		int len;
-	} *lbents;
-	int num_ents;
+  class lbent
+  {
+  public:
+    unsigned char *ip;
+    int            len;
+  } * lbents;
+  int num_ents;
 
-	HFONT hFontMono;
+  HFONT hFontMono;
 
-	char buf[256];
+  char buf[256];
 
 public:
-	VDDisassemblyContext vdc;
+  VDDisassemblyContext vdc;
 
-	CodeDisassemblyWindow(void *code, long, void *, void *);
-	~CodeDisassemblyWindow();
+  CodeDisassemblyWindow(void *code, long, void *, void *);
+  ~CodeDisassemblyWindow();
 
-	void DoInitListbox(HWND hwndList);
-	BOOL DoMeasureItem(LPARAM lParam);
-	BOOL DoDrawItem(LPARAM lParam);
-	void parse();
-	BOOL post(HWND);
-	long getInstruction(char *buf, long val);
+  void DoInitListbox(HWND hwndList);
+  BOOL DoMeasureItem(LPARAM lParam);
+  BOOL DoDrawItem(LPARAM lParam);
+  void parse();
+  BOOL post(HWND);
+  long getInstruction(char *buf, long val);
 
-	void setFaultAddress(void *_pFault) {
-		pFault = _pFault;
-	}
+  void setFaultAddress(void *_pFault)
+  {
+    pFault = _pFault;
+  }
 };
 
 #endif

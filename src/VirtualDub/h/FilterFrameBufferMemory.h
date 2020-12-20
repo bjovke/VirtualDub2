@@ -28,26 +28,35 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
-class VDFilterFrameBufferMemory	: public VDFilterFrameBuffer
+class VDFilterFrameBufferMemory : public VDFilterFrameBuffer
 {
 public:
-	VDFilterFrameBufferMemory();
+  VDFilterFrameBufferMemory();
 
-	void Init(uint32 size);
-	void Shutdown();
+  void Init(uint32 size);
+  void Shutdown();
 
-	void *LockWrite() { return mpBuffer; }
-	const void *LockRead() const { return mpBuffer; }
-	void Unlock() {}
+  void *LockWrite()
+  {
+    return mpBuffer;
+  }
+  const void *LockRead() const
+  {
+    return mpBuffer;
+  }
+  void Unlock() {}
 
-	uint32 GetSize() const { return mBufferSize; }
+  uint32 GetSize() const
+  {
+    return mBufferSize;
+  }
 
 protected:
-	~VDFilterFrameBufferMemory();
+  ~VDFilterFrameBufferMemory();
 
-	void *mpBuffer;
-	uint32 mBufferSize;
-	bool	mbVirtAlloc;
+  void * mpBuffer;
+  uint32 mBufferSize;
+  bool   mbVirtAlloc;
 };
 
-#endif	// f_VD2_FILTERFRAMEBUFFERMEMORY_H
+#endif // f_VD2_FILTERFRAMEBUFFERMEMORY_H

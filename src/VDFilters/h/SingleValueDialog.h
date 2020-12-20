@@ -21,6 +21,15 @@
 
 #include <vd2/plugin/vdvideofilt.h>
 
-bool VDFilterGetSingleValue(VDXHWND hWnd, sint32 cVal, sint32 *result, sint32 lMin, sint32 lMax, const char *title, IVDXFilterPreview2 *ifp2, void (*pUpdateFunction)(long value, void *data), void *pUpdateFunctionData);
+bool VDFilterGetSingleValue(
+  VDXHWND             hWnd,
+  sint32              cVal,
+  sint32 *            result,
+  sint32              lMin,
+  sint32              lMax,
+  const char *        title,
+  IVDXFilterPreview2 *ifp2,
+  void (*pUpdateFunction)(long value, void *data),
+  void *pUpdateFunctionData);
 
-#endif	// f_VD2_VDFILTERS_SINGLEVALUEDIALOG_H
+#endif // f_VD2_VDFILTERS_SINGLEVALUEDIALOG_H

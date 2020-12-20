@@ -20,172 +20,188 @@
 #include "FilterFrameVideoSource.h"
 #include "VideoSource.h"
 
-VDFilterFrameVideoSource::VDFilterFrameVideoSource()
-	: mpVS(NULL)
-	, mpRequest(NULL)
+VDFilterFrameVideoSource::VDFilterFrameVideoSource() : mpVS(NULL), mpRequest(NULL)
 {
-	mbPreroll = false;
+  mbPreroll = false;
 }
 
-VDFilterFrameVideoSource::~VDFilterFrameVideoSource() {
-	if (mpRequest) {
-		mpRequest->MarkComplete(false);
-		mpRequest->Release();
-		mpRequest = NULL;
-	}
+VDFilterFrameVideoSource::~VDFilterFrameVideoSource()
+{
+  if (mpRequest)
+  {
+    mpRequest->MarkComplete(false);
+    mpRequest->Release();
+    mpRequest = NULL;
+  }
 
-	if (mpVS)
-		mpVS->streamDisown(this);
+  if (mpVS)
+    mpVS->streamDisown(this);
 }
 
-void VDFilterFrameVideoSource::Init(IVDVideoSource *vs, const VDPixmapLayout& layout) {
-	mpVS = vs;
-	mpSS = vs->asStream();
-	mDecodePadding = vs->streamGetDecodePadding();
+void VDFilterFrameVideoSource::Init(IVDVideoSource *vs, const VDPixmapLayout &layout)
+{
+  mpVS           = vs;
+  mpSS           = vs->asStream();
+  mDecodePadding = vs->streamGetDecodePadding();
 
-	SetOutputLayout(layout);
+  SetOutputLayout(layout);
 }
 
 // used to decide if it is going to complete already
-bool VDFilterFrameVideoSource::IsPreroll() {
-	return mbPreroll;
+bool VDFilterFrameVideoSource::IsPreroll()
+{
+  return mbPreroll;
 }
 
-VDFilterFrameVideoSource::RunResult VDFilterFrameVideoSource::RunRequests(const uint32 *batchNumberLimit, int index) {
-	mbPreroll = false;
+VDFilterFrameVideoSource::RunResult VDFilterFrameVideoSource::RunRequests(const uint32 *batchNumberLimit, int index)
+{
+  mbPreroll = false;
 
-	if (index>0)
-		return kRunResult_Idle;
+  if (index > 0)
+    return kRunResult_Idle;
 
-	if (!mpVS->streamOwn(this)) {
-		mpVS->streamBegin(false, true);
-	}
+  if (!mpVS->streamOwn(this))
+  {
+    mpVS->streamBegin(false, true);
+  }
 
-	try {
-		bool activity = false;
+  try
+  {
+    bool activity = false;
 
-		if (mpRequest && !mpRequest->IsActive()) {
-			mpRequest->MarkComplete(false);
-			CompleteRequest(mpRequest, false);
-			mpRequest->Release();
-			mpRequest = NULL;
+    if (mpRequest && !mpRequest->IsActive())
+    {
+      mpRequest->MarkComplete(false);
+      CompleteRequest(mpRequest, false);
+      mpRequest->Release();
+      mpRequest = NULL;
 
-			activity = true;
-		}
+      activity = true;
+    }
 
-		if (!mpRequest) {
-			if (!GetNextRequest(batchNumberLimit, &mpRequest))
-				return activity ? kRunResult_IdleWasActive : kRunResult_Idle;
+    if (!mpRequest)
+    {
+      if (!GetNextRequest(batchNumberLimit, &mpRequest))
+        return activity ? kRunResult_IdleWasActive : kRunResult_Idle;
 
-			VDVERIFY(AllocateRequestBuffer(mpRequest));
+      VDVERIFY(AllocateRequestBuffer(mpRequest));
 
-			VDPosition frame = mpRequest->GetTiming().mOutputFrame;
+      VDPosition frame = mpRequest->GetTiming().mOutputFrame;
 
-			VDPosition limit = mpVS->asStream()->getLength();
-			if (frame >= limit)
-				frame = limit - 1;
+      VDPosition limit = mpVS->asStream()->getLength();
+      if (frame >= limit)
+        frame = limit - 1;
 
-			if (frame < 0)
-				frame = 0;
+      if (frame < 0)
+        frame = 0;
 
-			mTargetSample = mpVS->displayToStreamOrder(frame);
-			mpVS->streamSetDesiredFrame(frame);
-			mbFirstSample = true;
-		}
+      mTargetSample = mpVS->displayToStreamOrder(frame);
+      mpVS->streamSetDesiredFrame(frame);
+      mbFirstSample = true;
+    }
 
-		bool preroll;
+    bool preroll;
 
-		VDPosition pos = mpVS->streamGetNextRequiredFrame(preroll);
+    VDPosition pos = mpVS->streamGetNextRequiredFrame(preroll);
 
-		if (pos < 0) {
-			if (mbFirstSample)
-				mpVS->streamGetFrame(NULL, 0, false, -1, mTargetSample);
+    if (pos < 0)
+    {
+      if (mbFirstSample)
+        mpVS->streamGetFrame(NULL, 0, false, -1, mTargetSample);
 
-			VDFilterFrameBuffer *buf = mpRequest->GetResultBuffer();
-			const VDPixmap& pxsrc = mpVS->getTargetFormat();
-			VDPixmap pxdst = VDPixmapFromLayout(mLayout, buf->LockWrite());
+      VDFilterFrameBuffer *buf   = mpRequest->GetResultBuffer();
+      const VDPixmap &     pxsrc = mpVS->getTargetFormat();
+      VDPixmap             pxdst = VDPixmapFromLayout(mLayout, buf->LockWrite());
 
-			if (!mpBlitter)
-				mpBlitter = VDPixmapCreateBlitter(pxdst, pxsrc);
+      if (!mpBlitter)
+        mpBlitter = VDPixmapCreateBlitter(pxdst, pxsrc);
 
-			VDPROFILEBEGINEX3("V-BlitReq",(int)mTargetSample,0,mpBlitter->profiler_comment.c_str());
-			mpBlitter->Blit(pxdst, pxsrc);
-			buf->info = pxdst.info;
-			VDPROFILEEND();
+      VDPROFILEBEGINEX3("V-BlitReq", (int)mTargetSample, 0, mpBlitter->profiler_comment.c_str());
+      mpBlitter->Blit(pxdst, pxsrc);
+      buf->info = pxdst.info;
+      VDPROFILEEND();
 
-			buf->Unlock();
+      buf->Unlock();
 
-			mpRequest->MarkComplete(true);
-			CompleteRequest(mpRequest, true);
-			mpRequest->Release();
-			mpRequest = NULL;
-			return kRunResult_Running;
-		}
+      mpRequest->MarkComplete(true);
+      CompleteRequest(mpRequest, true);
+      mpRequest->Release();
+      mpRequest = NULL;
+      return kRunResult_Running;
+    }
 
-		IVDStreamSource *ss = mpVS->asStream();
-		uint32 bytes;
-		uint32 samples;
-		uint32 bufferSize = mBuffer.size();
-		int result = IVDStreamSource::kBufferTooSmall;
+    IVDStreamSource *ss = mpVS->asStream();
+    uint32           bytes;
+    uint32           samples;
+    uint32           bufferSize = mBuffer.size();
+    int              result     = IVDStreamSource::kBufferTooSmall;
 
-		static uintptr sCache = NULL;
+    static uintptr sCache = NULL;
 
-		if (bufferSize && bufferSize >= mDecodePadding) {
-			if (g_pVDEventProfiler) {
-				g_pVDEventProfiler->BeginScope("V-Read", &sCache, (uint32)mTargetSample, 0);
-				g_pVDEventProfiler->SetComment(sCache, ss->GetProfileComment());
-			}
-			result = ss->read(pos, 1, mBuffer.data(), bufferSize - mDecodePadding, &bytes, &samples);
-			VDPROFILEEND();
-		}
+    if (bufferSize && bufferSize >= mDecodePadding)
+    {
+      if (g_pVDEventProfiler)
+      {
+        g_pVDEventProfiler->BeginScope("V-Read", &sCache, (uint32)mTargetSample, 0);
+        g_pVDEventProfiler->SetComment(sCache, ss->GetProfileComment());
+      }
+      result = ss->read(pos, 1, mBuffer.data(), bufferSize - mDecodePadding, &bytes, &samples);
+      VDPROFILEEND();
+    }
 
-		if (result == IVDStreamSource::kBufferTooSmall) {
-			ss->read(pos, 1, NULL, 0, &bytes, &samples);
+    if (result == IVDStreamSource::kBufferTooSmall)
+    {
+      ss->read(pos, 1, NULL, 0, &bytes, &samples);
 
-			if (bytes == 0)
-				bytes = 1;
+      if (bytes == 0)
+        bytes = 1;
 
-			mBuffer.resize(bytes + mDecodePadding);
+      mBuffer.resize(bytes + mDecodePadding);
 
-			if (g_pVDEventProfiler) {
-				g_pVDEventProfiler->BeginScope("V-Read", &sCache, (uint32)mTargetSample, 0);
-				g_pVDEventProfiler->SetComment(sCache, ss->GetProfileComment());
-			}
-			result = ss->read(pos, 1, mBuffer.data(), mBuffer.size() - mDecodePadding, &bytes, &samples);
-			VDPROFILEEND();
+      if (g_pVDEventProfiler)
+      {
+        g_pVDEventProfiler->BeginScope("V-Read", &sCache, (uint32)mTargetSample, 0);
+        g_pVDEventProfiler->SetComment(sCache, ss->GetProfileComment());
+      }
+      result = ss->read(pos, 1, mBuffer.data(), mBuffer.size() - mDecodePadding, &bytes, &samples);
+      VDPROFILEEND();
 
-			if (result)
-				throw MyAVIError("Video frame read", result);
-		}
+      if (result)
+        throw MyAVIError("Video frame read", result);
+    }
 
-		mpVS->streamFillDecodePadding(mBuffer.data(), bytes);
-		VDPROFILEBEGINEX("V-Decode", (uint32)mTargetSample);
-		mpVS->streamGetFrame(mBuffer.data(), bytes, preroll, pos, mTargetSample);
-		VDPROFILEEND();
-		mbFirstSample = false;
-		mbPreroll = preroll;
-	} catch(const MyError& e) {
-		if (mpRequest) {
-			vdrefptr<VDFilterFrameRequestError> err(new_nothrow VDFilterFrameRequestError);
-			if (err)
-				err->mError.sprintf("Error reading source frame %lld: %s", mpRequest->GetTiming().mOutputFrame, e.gets());
+    mpVS->streamFillDecodePadding(mBuffer.data(), bytes);
+    VDPROFILEBEGINEX("V-Decode", (uint32)mTargetSample);
+    mpVS->streamGetFrame(mBuffer.data(), bytes, preroll, pos, mTargetSample);
+    VDPROFILEEND();
+    mbFirstSample = false;
+    mbPreroll     = preroll;
+  }
+  catch (const MyError &e)
+  {
+    if (mpRequest)
+    {
+      vdrefptr<VDFilterFrameRequestError> err(new_nothrow VDFilterFrameRequestError);
+      if (err)
+        err->mError.sprintf("Error reading source frame %lld: %s", mpRequest->GetTiming().mOutputFrame, e.gets());
 
-			mpRequest->SetError(err);
-			mpRequest->MarkComplete(false);
-			CompleteRequest(mpRequest, false);
-			mpRequest->Release();
-			mpRequest = NULL;
-		}
-	}
+      mpRequest->SetError(err);
+      mpRequest->MarkComplete(false);
+      CompleteRequest(mpRequest, false);
+      mpRequest->Release();
+      mpRequest = NULL;
+    }
+  }
 
-	return kRunResult_Running;
+  return kRunResult_Running;
 }
 
-sint64 VDFilterFrameVideoSource::GetNearestUniqueFrame(sint64 outputFrame) {
-	outputFrame = mpVS->getRealDisplayFrame(outputFrame);
+sint64 VDFilterFrameVideoSource::GetNearestUniqueFrame(sint64 outputFrame)
+{
+  outputFrame = mpVS->getRealDisplayFrame(outputFrame);
 
-	if (outputFrame < 0)
-		return 0;
+  if (outputFrame < 0)
+    return 0;
 
-	return outputFrame;
+  return outputFrame;
 }
